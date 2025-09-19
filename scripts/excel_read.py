@@ -4,15 +4,18 @@
 #   program from a game interface. Returns and stuff should be as generic as possible, OpenPyXL 
 #   should ONLY be used in this file.
 
+
 import openpyxl as opxl
 import os
 import string
-from PowerPlant import PowerPlant
+from powerplant import PowerPlant
 
-temp_excel_path = 'CE4321_GridOptimizer_v3.xlsx'  # this is just for testing, an actual run will take path from caller
+
+temp_excel_path = 'git_ignore\CE4321_GridOptimizer_v3.xlsx'  # this is just for testing, an actual run will take path from caller
+
 
 # gets plant info from excel sheet and stores it in a list of PowerPlant objects
-def get_plants(path: string = temp_excel_path):  # takes a path to an excel sheet as input, returns a list of powerplant objects
+def get_plants(path: string = temp_excel_path):
     try:  # if all error checks pass, it'll continue on to execution.
         if os.path.exists == False:
             raise FileNotFoundError('File does not exist. Check the provided path and try again.')
@@ -88,6 +91,6 @@ def get_conditions(path: string = temp_excel_path):
     except Exception as e:  # catches all errors
             print(f'An error occurred:\n    {e}')
 
+
 # TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY.
-for c in get_conditions(temp_excel_path):
-    print(c)
+
