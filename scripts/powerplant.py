@@ -17,11 +17,11 @@ class PowerPlant:
         self.id = id
         self.name = name
         self.type = type
-        self.plant_cost = plant_cost
-        self.min_output = min_output
-        self.max_output = max_output
-        self.demand = demand
-        self.wholesale_cost = wholesale_cost
+        self.plant_cost = round(plant_cost, 2)
+        self.min_output = round(min_output, 2)
+        self.max_output = round(max_output, 2)
+        self.demand = round(demand, 2)
+        self.wholesale_cost = round(wholesale_cost, 2)
 
     def __str__(self):
         return(f'Plant ID:                  {self.id}\n'

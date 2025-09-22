@@ -34,11 +34,32 @@ def get_plants(path: string = temp_excel_path):
                 id = row[0]
                 name = row[1]
                 type = row[2]
-                min_output = row[6]
-                max_output = row[8]
                 demand = row[11]
 
-                # these guys are sometimes excel if formulas, so process a bit before adding them to the plant
+                # these are dependent on amount of sun and wind
+                # TODO: multiply by sun/wind values to replace =IFs, if they exist
+                min_output = row[6]
+                max_output = row[8]
+
+                conditions = get_conditions(path)  # they call me john programming
+
+                if str(min_output)[0] == '=': 
+                    split_string = min_output.split(',')
+                    if type.lower() == "wind":
+                        min_output = conditions[2] * float(split_string[1])  # multiply by wind constraint
+                    elif type.lower == "solar":
+                        min_output = conditions[1] * float(split_string[1])  # multiply by sun constraint
+                    else: print(f'Error converting from Excel IF.')
+
+                if str(max_output)[0] == '=': 
+                    split_string = max_output.split(',')
+                    if type.lower() == "wind":
+                        max_output = conditions[2] * float(split_string[1])  # multiply by wind constraint
+                    elif type.lower == "solar":
+                        max_output = conditions[1] * float(split_string[1])  # multiply by sun constraint
+                    else: print(f'Error converting from Excel IF.')
+
+                # these guys are sometimes excel =if formulas, so process a bit before adding them to the plant
                 plant_cost = row[4]
                 wholesale_cost = row[13]
 
@@ -93,4 +114,4 @@ def get_conditions(path: string = temp_excel_path):
 
 
 # TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY.
-
+get_plants(temp_excel_path)
