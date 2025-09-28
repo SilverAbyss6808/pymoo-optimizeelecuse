@@ -10,7 +10,6 @@ from powerplant import PowerPlant
 from excel_read import get_conditions, get_plants  # DELETE THIS WHEN DONE TESTING THIS FILE
 
 from pymoo.algorithms.soo.nonconvex.ga import GA as gen_alg 
-from pymoo.core.population import Population
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.optimize import minimize
 from pymoo.termination import get_termination
@@ -33,16 +32,9 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 def opt_cost(plants: list[PowerPlant], conditions: list[float]):
 
     # easy access to important variables!!
-    population_size = 100  # will be used later in _evaluate for finding "x" array dimensions
-    # TODO what exactly is this? wrap your little baby brain around it
-    num_gens = 10  # number of generations to run. small for testing :P
-
-    # this will be a list of costs..? for now at least........???????
-    # or maybe a numpy array where only the cost is accessed? is that possible
-    initial_population = Population().new()  # TODO how do i initialize a population? like how do i add stuff. theres no append
-    for plant in plants:
-        # initial_population.new()  # WHY IS "CUMSUM" AN OPTION HERE. WHO THE FUCK MADE THAT.
-        pass  # so the file name isn't red and evil
+    population_size = 100  # will be used later in _evaluate for finding "x" array dimensions. default to 100
+    # population size is like amount of people, n_var (i think) is like number of genes in a body
+    num_gens = 100  # number of generations to run. small for testing :P
     
     class CostOptProblem(ElementwiseProblem):
         def __init__(self):
@@ -51,23 +43,45 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
             #   - it's what's changed each run (each plant's energy output, so must = number of plants)
             #   - also number of columns in input
             # n_obj is number of objectives; WILL STAY 1 BECAUSE SINGLE OBJECTIVE, objective is cost (minimize)
-            # xl and xu (upper and lower bounds for x) will be defined here, eventually. not now though.
-            super().__init__(n_var=len(plants), n_obj=1)
+
+            # xl and xu (upper and lower bounds for x/cost) here
+            xl: list[float] = []
+            xu: list[float] = []
+
+            for p in plants:  # finding min and max possible costs for plants
+                xl.append(round(p.plant_cost * p.min_output, 2))  # can't just put 0 because some plants NEED to output a little
+                xu.append(round(p.plant_cost * p.max_output, 2))
+
+            super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu))  # add n_constr=3 later
 
         # tells the problem whats a good/feasible solution
         def _evaluate(self, x, out):
             # x definition from docs: 
             # "x is a one-dimensional array of length [n_var] and is called [pop_size] times in each iteration"
-            #   - so here it's [100x1] ([16x1]?)
-            #   - numpy array !!
-            #   - trying to really figure out where x comes from. provided by initial population? my brain hurts
-            # f is objective function; this should calculate cost x megawatt.
-            out["F"] = x.sum()  # will be something like (x (cost) * decision var (mW)).sum()
+            #   - so here it's length 16
+            #   - numpy array ??
+            # x is array of random costs between xl and xu
+            # f is objective function; this should calculate cost per (times) megawatt.
+
+            total_mw: float = 0
+
+            for ind, cost in enumerate(x):  # i know this is a lot. bear with me
+                p = plants[ind]
+                c = p.plant_cost
+                mw = cost/c
+                mi = p.min_output
+                ma = p.max_output
+                bt = mw >= mi and mw <= ma
+                if bt == False: print(f'Warning: amount of mW produced by {p.name} lies out of bounds.')
+                total_mw += mw
+                # print(f'plant mW: {round(mw, 2)}, min: {mi}, max: {ma}, between? {bt}')  # just for testing
+
+            # print(f'Cost for {round(total_mw, 2)} mW is {round(x.sum(), 2)}')
+            out["F"] = np.round(x.sum(), 2)  # will be something like (x (cost) * decision var (mW))
             # out["G"] =   # TODO array of constraints---just get it working first
 
     alg = gen_alg(
         pop_size=population_size,
-        sampling=initial_population,  # correct to have sampling here?
         eliminate_duplicates=True
     )
 
@@ -75,37 +89,22 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
         problem=CostOptProblem(),
         algorithm=alg,  # defined directly above this
         termination=get_termination("n_gen", num_gens),
-        verbose=True,
         save_history=True
     )
 
-    # this stuff's all just printing. can ignore for now.
-
-    # print best sum achieved
+    # print best cost achieved
     print(f'Best cost {result.pop.get("F").min()}')
 
     # put entire run history into variable for easier access
     history = result.history
 
-    # print statement from onemax
-    for run in history:
-        index = 0
-        print(f'Run {run.n_gen}:\n'  # print generation number
-            f'       ', end='')
-        for bit in run.opt[0].X:
-            index = index + 1
-            print(f'{int(bit)}', end='')
-        print(f'\n'
-              f'       Run {run.n_gen} sum: {run.pop.get("F").min()}')  # show generation's best sum
+    # print each gen's best cost found
+    # for run in history:
+    #     print(f'Run {run.n_gen} best cost: {run.pop.get("F").min()}')  # show generation's best sum
 
 
 # TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY.
-plants = get_plants('git_ignore\CE4321_GridOptimizer_v3.xlsx')
-conditions = get_conditions('git_ignore\CE4321_GridOptimizer_v3.xlsx')
+plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
+conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
 
-for plant in plants:
-    print(str(plant))
-for cond in conditions:
-    print(cond)
-
-# optimize('cost', plants, conditions)
+optimize('cost', plants, conditions)
