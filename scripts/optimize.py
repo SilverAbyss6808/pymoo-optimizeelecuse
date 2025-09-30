@@ -43,16 +43,23 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
             #   - it's what's changed each run (each plant's energy output, so must = number of plants)
             #   - also number of columns in input
             # n_obj is number of objectives; WILL STAY 1 BECAUSE SINGLE OBJECTIVE, objective is cost (minimize)
+            # note that x should be mw NOT COST
+
+            # make list of plants accessible outside function
+            # just to kinda save time. can be accessed like result.pop.get('plant_cost_per_mw')
+            self.plant_cost_per_mw: list[float] = []
 
             # xl and xu (upper and lower bounds for x/cost) here
             xl: list[float] = []
             xu: list[float] = []
 
-            for p in plants:  # finding min and max possible costs for plants
-                xl.append(round(p.plant_cost * p.min_output, 2))  # can't just put 0 because some plants NEED to output a little
-                xu.append(round(p.plant_cost * p.max_output, 2))
+            for p in plants:  # finding min and max possible outputs for plants, ALL X VALS WILL BE BETWEEN THESE
+                xl.append(p.min_output)
+                xu.append(p.max_output)
+                # add each plant's mw cost to list. note that wholesale cost isn't used
+                self.plant_cost_per_mw.append(p.plant_cost)  
 
-            super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu))  # add n_constr=3 later
+            super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=1)  # add n_constr later
 
         # tells the problem whats a good/feasible solution
         def _evaluate(self, x, out):
@@ -63,22 +70,22 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
             # x is array of random costs between xl and xu
             # f is objective function; this should calculate cost per (times) megawatt.
 
-            total_mw: float = 0
+            self.total_mw: float = 0
+            self.mw_per_plant: dict = {}
 
-            for ind, cost in enumerate(x):  # i know this is a lot. bear with me
+            for ind, mw in enumerate(x):  # i know this is a lot. bear with me
                 p = plants[ind]
-                c = p.plant_cost
-                mw = cost/c
                 mi = p.min_output
                 ma = p.max_output
-                bt = mw >= mi and mw <= ma
+                bt = mw >= mi and mw <= ma  # checks if the amount of power generated is within plant's bounds
+                # really, this should never print. but you know how it is
                 if bt == False: print(f'Warning: amount of mW produced by {p.name} lies out of bounds.')
-                total_mw += mw
-                # print(f'plant mW: {round(mw, 2)}, min: {mi}, max: {ma}, between? {bt}')  # just for testing
+
+                self.mw_per_plant[p.name] = round(mw, 2)
 
             # print(f'Cost for {round(total_mw, 2)} mW is {round(x.sum(), 2)}')
-            out["F"] = np.round(x.sum(), 2)  # will be something like (x (cost) * decision var (mW))
-            # out["G"] =   # TODO array of constraints---just get it working first
+            out["F"] = np.round(x.sum(), 2)  # sums all values of x (each value is an amount of mw generated)
+            out["G"] = conditions[0] - x.sum() # TODO make it check to make sure demand is met
 
     alg = gen_alg(
         pop_size=population_size,
@@ -88,13 +95,14 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
     result = minimize(
         problem=CostOptProblem(),
         algorithm=alg,  # defined directly above this
-        termination=get_termination("n_gen", num_gens),
+        termination=get_termination('n_gen', num_gens),
+        verbose=True,
         save_history=True
     )
 
     # print best cost achieved
-    print(f'Best cost {result.pop.get("F").min()}')
-
+    print(f'Lowest value: {result.pop.get('F').min()}')
+    # print(f'Best portfolio {result.pop.get("X")}')
     # put entire run history into variable for easier access
     history = result.history
 
