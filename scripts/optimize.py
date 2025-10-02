@@ -26,7 +26,6 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
     except Exception as e:
         print(e)
 
-
 # DEFINING THE OPTIMIZATION FUNCTION FOR COST!!!
 # I REALLY WISH I COULD PUT MARKDOWN IN HERE. INSTEAD ILL JUST YELL IG
 def opt_cost(plants: list[PowerPlant], conditions: list[float]):
@@ -34,7 +33,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
     # easy access to important variables!!
     population_size = 100  # will be used later in _evaluate for finding "x" array dimensions. default to 100
     # population size is like amount of people, n_var (i think) is like number of genes in a body
-    num_gens = 100  # number of generations to run. small for testing :P
+    num_gens = 300  # number of generations to run. small for testing :P
     
     class CostOptProblem(ElementwiseProblem):
         def __init__(self):
@@ -46,46 +45,56 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
             # note that x should be mw NOT COST
 
             # make list of plants accessible outside function
-            # just to kinda save time. can be accessed like result.pop.get('plant_cost_per_mw')
-            self.plant_cost_per_mw: list[float] = []
+            # just to kinda save time. can be accessed like result.pop.get('plant_cost_per_mw') <-- ok maybe not
+            # self.plant_cost_per_mw: list[float] = []
 
             # xl and xu (upper and lower bounds for x/cost) here
             xl: list[float] = []
             xu: list[float] = []
 
             for p in plants:  # finding min and max possible outputs for plants, ALL X VALS WILL BE BETWEEN THESE
-                xl.append(p.min_output)
+                # xl.append(p.min_output)
+                xl.append(0)
                 xu.append(p.max_output)
                 # add each plant's mw cost to list. note that wholesale cost isn't used
-                self.plant_cost_per_mw.append(p.plant_cost)  
+                # self.plant_cost_per_mw.append(p.plant_cost) 
 
-            super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=1)  # add n_constr later
+            super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=1)
 
-        # tells the problem whats a good/feasible solution
+        # tells the problem what's a good/feasible solution
         def _evaluate(self, x, out):
             # x definition from docs: 
             # "x is a one-dimensional array of length [n_var] and is called [pop_size] times in each iteration"
             #   - so here it's length 16
             #   - numpy array ??
-            # x is array of random costs between xl and xu
+            # x is array of random mw between xl and xu
             # f is objective function; this should calculate cost per (times) megawatt.
 
-            self.total_mw: float = 0
-            self.mw_per_plant: dict = {}
+            cost_per_plant: list = []
+            power_demand = conditions[0]  # 13600 mW
+
+            constraint_violations = []
 
             for ind, mw in enumerate(x):  # i know this is a lot. bear with me
                 p = plants[ind]
                 mi = p.min_output
                 ma = p.max_output
-                bt = mw >= mi and mw <= ma  # checks if the amount of power generated is within plant's bounds
+                bt = (mw < mi or mw > ma) and mw != 0 # checks if the amount of power generated is within plant's bounds
                 # really, this should never print. but you know how it is
-                if bt == False: print(f'Warning: amount of mW produced by {p.name} lies out of bounds.')
+                if bt == True: print(f'Warning: amount of mW produced by {p.name} lies out of bounds.')
 
-                self.mw_per_plant[p.name] = round(mw, 2)
+                constraint_violations.append(bt)  # adds cv T/F to end of array
 
-            # print(f'Cost for {round(total_mw, 2)} mW is {round(x.sum(), 2)}')
-            out["F"] = np.round(x.sum(), 2)  # sums all values of x (each value is an amount of mw generated)
-            out["G"] = conditions[0] - x.sum() # TODO make it check to make sure demand is met
+                cost_per_plant.append(round(mw * p.plant_cost, 2))
+
+            demand_met = power_demand - x.sum()
+            if demand_met < 0: demand_met = -demand_met
+
+            print(cost_per_plant)
+
+            out["F"] = round(sum(cost_per_plant), 2)  # total mw generated
+            # if all plants within limits, constraint_violations will be 0, demand same :P
+            out["G"] = sum(constraint_violations) + demand_met # <= 0 is ok, > 0 is not
 
     alg = gen_alg(
         pop_size=population_size,
@@ -101,8 +110,10 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
     )
 
     # print best cost achieved
-    print(f'Lowest value: {result.pop.get('F').min()}')
-    # print(f'Best portfolio {result.pop.get("X")}')
+    # print(f'Lowest value: {result.pop.get('F').min()}')
+    # print(f'mW by plant: {result.pop.get('X')}')
+    print("Best solution found: \nX = %s\nF = %s\nG = %s" % (result.X, result.F, result.G))
+
     # put entire run history into variable for easier access
     history = result.history
 
