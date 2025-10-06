@@ -52,9 +52,11 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
             xl: list[float] = []
             xu: list[float] = []
 
+            self.cost_per_plant: list[str, float, float] = []  # plant name, power generated, total cost from plant
+
             for p in plants:  # finding min and max possible outputs for plants, ALL X VALS WILL BE BETWEEN THESE
                 # xl.append(p.min_output)
-                xl.append(0)
+                xl.append(p.min_output)
                 xu.append(p.max_output)
                 # add each plant's mw cost to list. note that wholesale cost isn't used
                 # self.plant_cost_per_mw.append(p.plant_cost) 
@@ -70,30 +72,27 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
             # x is array of random mw between xl and xu
             # f is objective function; this should calculate cost per (times) megawatt.
 
-            cost_per_plant: list = []
-            power_demand = conditions[0]  # 13600 mW
+            self.cost_per_plant = []  # reset to empty
+            power_demand: float = conditions[0]  # 13600 mW right now
 
-            constraint_violations = []
+            constraint_violations: list[bool] = []
 
-            for ind, mw in enumerate(x):  # i know this is a lot. bear with me
+            for ind, mw in enumerate(x):
                 p = plants[ind]
                 mi = p.min_output
                 ma = p.max_output
-                bt = (mw < mi or mw > ma) and mw != 0 # checks if the amount of power generated is within plant's bounds
-                # really, this should never print. but you know how it is
-                if bt == True: print(f'Warning: amount of mW produced by {p.name} lies out of bounds.')
 
-                constraint_violations.append(bt)  # adds cv T/F to end of array
+                bt = mw < mi or mw > ma  # checks if the amount of power generated is within plant's bounds
+                constraint_violations.append(bt)  # adds cv boolean to end of array
 
-                cost_per_plant.append(round(mw * p.plant_cost, 2))
+                self.cost_per_plant.append([p.name, round(float(mw), 2), round(float(mw) * 1000 * p.plant_cost, 2)])  # x1000 because mw
 
             demand_met = power_demand - x.sum()
-            if demand_met < 0: demand_met = -demand_met
+            if demand_met < 0: demand_met = 0  # sets to 0 if the demand was successfully met
 
-            print(cost_per_plant)
+            # print(cost_per_plant)
 
-            out["F"] = round(sum(cost_per_plant), 2)  # total mw generated
-            # if all plants within limits, constraint_violations will be 0, demand same :P
+            out["F"] = round(x.sum(), 2)  # total mw generated
             out["G"] = sum(constraint_violations) + demand_met # <= 0 is ok, > 0 is not
 
     alg = gen_alg(
@@ -109,13 +108,16 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
         save_history=True
     )
 
-    # print best cost achieved
-    # print(f'Lowest value: {result.pop.get('F').min()}')
-    # print(f'mW by plant: {result.pop.get('X')}')
-    print("Best solution found: \nX = %s\nF = %s\nG = %s" % (result.X, result.F, result.G))
+    # print best solution achieved
+    print('Best solution found: \nX = %s\nF = %s\nG = %s' % (result.X, result.F, result.G))
+
+    for i, p in enumerate(result.problem.cost_per_plant):
+        print(f'{i+1}. {p[0]}\n'
+              f'    mW produced:    {p[1]}\n'
+              f'    Total price:    ${p[2]}')
 
     # put entire run history into variable for easier access
-    history = result.history
+    # history = result.history
 
     # print each gen's best cost found
     # for run in history:
