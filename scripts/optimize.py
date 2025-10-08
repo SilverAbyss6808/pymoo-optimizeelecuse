@@ -1,15 +1,13 @@
 
-# this is where the actual optimization will happen
-# maybe make a copy of this and remove annotations when done. 
-#   put the annotated version in git_ignore for reference
-
-
 import string
 import numpy as np
-from powerplant import PowerPlant
+
+from alive_progress import alive_bar
 from excel_read import get_conditions, get_plants  # DELETE THIS WHEN DONE TESTING THIS FILE
+from powerplant import PowerPlant
 
 from pymoo.algorithms.soo.nonconvex.ga import GA as gen_alg 
+from pymoo.core.callback import Callback
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.optimize import minimize
 from pymoo.termination import get_termination
@@ -26,87 +24,106 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
     except Exception as e:
         print(e)
 
-
 # DEFINING THE OPTIMIZATION FUNCTION FOR COST!!!
 # I REALLY WISH I COULD PUT MARKDOWN IN HERE. INSTEAD ILL JUST YELL IG
 def opt_cost(plants: list[PowerPlant], conditions: list[float]):
 
     # easy access to important variables!!
-    population_size = 100  # will be used later in _evaluate for finding "x" array dimensions. default to 100
-    # population size is like amount of people, n_var (i think) is like number of genes in a body
-    num_gens = 100  # number of generations to run. small for testing :P
+    population_size = 200  # will be used later in _evaluate for finding "x" array dimensions. default to 100
+    num_gens = 1000  # number of generations to run
+
+    # defining the progress bar up here so it's easier to find
+    progress_bar = alive_bar(
+        total=num_gens, 
+        title='Optimizing data. Have a fish while you wait:', 
+        bar='fish',
+        spinner='classic'
+    ) 
     
+
+    # CLASSES !!!
     class CostOptProblem(ElementwiseProblem):
         def __init__(self):
-
-            # n_var is number of decision (design?) vars; for now is just amount of power from each plant
-            #   - it's what's changed each run (each plant's energy output, so must = number of plants)
-            #   - also number of columns in input
-            # n_obj is number of objectives; WILL STAY 1 BECAUSE SINGLE OBJECTIVE, objective is cost (minimize)
-            # note that x should be mw NOT COST
-
-            # make list of plants accessible outside function
-            # just to kinda save time. can be accessed like result.pop.get('plant_cost_per_mw')
-            self.plant_cost_per_mw: list[float] = []
-
             # xl and xu (upper and lower bounds for x/cost) here
-            xl: list[float] = []
-            xu: list[float] = []
+            xl: list[int] = []
+            xu: list[int] = []
+            self.cost_per_plant: list[str, float, float] = []  # plant name, cost/w, power generated, total mw cost
 
             for p in plants:  # finding min and max possible outputs for plants, ALL X VALS WILL BE BETWEEN THESE
-                xl.append(p.min_output)
+                xl.append(0)
                 xu.append(p.max_output)
-                # add each plant's mw cost to list. note that wholesale cost isn't used
-                self.plant_cost_per_mw.append(p.plant_cost)  
 
-            super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=1)  # add n_constr later
+            # number of constraints = number of plants (17), demand met (1)
+            num_constr = len(plants) + 1
+            super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=num_constr)
 
-        # tells the problem whats a good/feasible solution
+
         def _evaluate(self, x, out):
-            # x definition from docs: 
-            # "x is a one-dimensional array of length [n_var] and is called [pop_size] times in each iteration"
-            #   - so here it's length 16
-            #   - numpy array ??
-            # x is array of random costs between xl and xu
-            # f is objective function; this should calculate cost per (times) megawatt.
+            # reset tracking lists to empty
+            self.cost_per_plant = []
+            constraint_violations: list[bool] = []
 
-            self.total_mw: float = 0
-            self.mw_per_plant: dict = {}
+            power_demand: float = conditions[0]  # 13600 mW right now
+            plant_costs = [p.plant_cost for p in plants]
 
-            for ind, mw in enumerate(x):  # i know this is a lot. bear with me
+            for ind, mw in enumerate(x):
                 p = plants[ind]
                 mi = p.min_output
                 ma = p.max_output
-                bt = mw >= mi and mw <= ma  # checks if the amount of power generated is within plant's bounds
-                # really, this should never print. but you know how it is
-                if bt == False: print(f'Warning: amount of mW produced by {p.name} lies out of bounds.')
 
-                self.mw_per_plant[p.name] = round(mw, 2)
+                # constraint violations: you want these to be FALSE !!!
+                # check if mw generated is out of bounds but not zero
+                notok = (mw > ma or mw < mi) and mw != 0
+                constraint_violations.append(notok)  # adds cv boolean to end of array (true is 1, false is 0)
 
-            # print(f'Cost for {round(total_mw, 2)} mW is {round(x.sum(), 2)}')
-            out["F"] = np.round(x.sum(), 2)  # sums all values of x (each value is an amount of mw generated)
-            out["G"] = conditions[0] - x.sum() # TODO make it check to make sure demand is met
+                # TODO make it so <= 1 (so no more than one) plants can be below max power.
+                # one can be below min but not 0 to allow for this
+
+                self.cost_per_plant.append([p.name, round(mw), round(mw * 1000 * p.plant_cost, 2)])  # x1000 because mw
+
+            demand_met = power_demand - x.sum()
+            if demand_met < 0: demand_met = 0  # sets to 0 if the demand was successfully met
+            constraint_violations.append(demand_met)
+
+            out["F"] = round((x * 1000 * np.array(plant_costs)).sum(), 2)  # total cost of mw from plants
+            out["G"] = constraint_violations # <= 0 (all values false) is ok, > 0 is not
+
+
+    class ProgressBarCallback(Callback):  # updates the progress bar every generation
+        def notify(self, alg):  # it won't let me not have an algorithm variable, even if its not used. lmao
+            bar()
+
 
     alg = gen_alg(
         pop_size=population_size,
         eliminate_duplicates=True
     )
 
-    result = minimize(
-        problem=CostOptProblem(),
-        algorithm=alg,  # defined directly above this
-        termination=get_termination('n_gen', num_gens),
-        verbose=True,
-        save_history=True
-    )
+    with progress_bar as bar:
+        result = minimize(  # go go gadget cheap electric
+            problem=CostOptProblem(),
+            algorithm=alg,  # defined directly above this
+            termination=get_termination('n_gen', num_gens),
+            verbose=False,
+            callback=ProgressBarCallback(),
+            save_history=True
+        )
 
-    # print best cost achieved
-    print(f'Lowest value: {result.pop.get('F').min()}')
-    # print(f'Best portfolio {result.pop.get("X")}')
-    # put entire run history into variable for easier access
-    history = result.history
+    # print best solution achieved
+    print('Best solution found: \nX = %s\nF = %s\nG = %s' % (result.X, result.F, result.G))
 
-    # print each gen's best cost found
+    plant_info = [(p.plant_cost, p.max_output) for p in plants]
+    for i, p in enumerate(result.problem.cost_per_plant):
+        # print(f'{i+1}. {p[0]} ({plant_info[i][0]})\n'
+        #       f'    mW produced:    {p[1]} (max: {plant_info[i][1]})\n'
+        #       f'    Total price:    ${p[2]}')
+        print(f'{p[1]}/{plant_info[i][1]}   {p[0]}')
+
+
+    # # put entire run history into variable for easier access
+    # history = result.history
+
+    # # print each gen's best cost found
     # for run in history:
     #     print(f'Run {run.n_gen} best cost: {run.pop.get("F").min()}')  # show generation's best sum
 
