@@ -11,7 +11,7 @@ import string
 from powerplant import PowerPlant
 
 
-temp_excel_path = 'git_ignore\CE4321_GridOptimizer_v3.xlsx'  # this is just for testing, an actual run will take path from caller
+temp_excel_path = 'git_ignore\\CE4321_GridOptimizer_v3.xlsx'  # this is just for testing, an actual run will take path from caller
 
 
 # gets plant info from excel sheet and stores it in a list of PowerPlant objects
@@ -37,7 +37,6 @@ def get_plants(path: string = temp_excel_path):
                 demand = row[11]
 
                 # these are dependent on amount of sun and wind
-                # TODO: multiply by sun/wind values to replace =IFs, if they exist
                 min_output = row[6]
                 max_output = row[8]
 

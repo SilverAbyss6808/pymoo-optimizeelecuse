@@ -30,7 +30,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
 
     # easy access to important variables!!
     population_size = 200  # will be used later in _evaluate for finding "x" array dimensions. default to 100
-    num_gens = 500  # number of generations to run
+    num_gens = 1000  # number of generations to run
 
     # defining the progress bar up here so it's easier to find
     progress_bar = alive_bar(
@@ -45,15 +45,16 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
     class CostOptProblem(ElementwiseProblem):
         def __init__(self):
             # xl and xu (upper and lower bounds for x/cost) here
-            xl: list[float] = []
-            xu: list[float] = []
+            xl: list[int] = []
+            xu: list[int] = []
             self.cost_per_plant: list[str, float, float] = []  # plant name, cost/w, power generated, total mw cost
 
             for p in plants:  # finding min and max possible outputs for plants, ALL X VALS WILL BE BETWEEN THESE
                 xl.append(0)
                 xu.append(p.max_output)
 
-            num_constr = len(plants) + 1  # number of constraints = number of plants plus one for demand met
+            # number of constraints = number of plants (17), demand met (1)
+            num_constr = len(plants) + 1
             super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=num_constr)
 
 
@@ -70,22 +71,26 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
                 mi = p.min_output
                 ma = p.max_output
 
-                bt = (mw > ma or mw < mi) and mw != 0
-                constraint_violations.append(bt)  # adds cv boolean to end of array (true is 1, false is 0)
-                # you want this to be FALSE!!! RAAAHHHHHH
+                # constraint violations: you want these to be FALSE !!!
+                # check if mw generated is out of bounds but not zero
+                notok = (mw > ma or mw < mi) and mw != 0
+                constraint_violations.append(notok)  # adds cv boolean to end of array (true is 1, false is 0)
 
-                self.cost_per_plant.append([p.name, round(float(mw)), round(float(mw) * 1000 * p.plant_cost, 2)])  # x1000 because mw
+                # TODO make it so <= 1 (so no more than one) plants can be below max power.
+                # one can be below min but not 0 to allow for this
+
+                self.cost_per_plant.append([p.name, round(mw), round(mw * 1000 * p.plant_cost, 2)])  # x1000 because mw
 
             demand_met = power_demand - x.sum()
             if demand_met < 0: demand_met = 0  # sets to 0 if the demand was successfully met
             constraint_violations.append(demand_met)
 
-            out["F"] = round((x * 1000 * np.array(plant_costs)).sum(), 2)  # total mw generated
+            out["F"] = round((x * 1000 * np.array(plant_costs)).sum(), 2)  # total cost of mw from plants
             out["G"] = constraint_violations # <= 0 (all values false) is ok, > 0 is not
 
 
     class ProgressBarCallback(Callback):  # updates the progress bar every generation
-        def notify(self, alg):
+        def notify(self, alg):  # it won't let me not have an algorithm variable, even if its not used. lmao
             bar()
 
 
@@ -109,9 +114,11 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
 
     plant_info = [(p.plant_cost, p.max_output) for p in plants]
     for i, p in enumerate(result.problem.cost_per_plant):
-        print(f'{i+1}. {p[0]} ({plant_info[i][0]})\n'
-              f'    mW produced:    {p[1]} (max: {plant_info[i][1]})\n'
-              f'    Total price:    ${p[2]}')
+        # print(f'{i+1}. {p[0]} ({plant_info[i][0]})\n'
+        #       f'    mW produced:    {p[1]} (max: {plant_info[i][1]})\n'
+        #       f'    Total price:    ${p[2]}')
+        print(f'{p[1]}/{plant_info[i][1]}   {p[0]}')
+
 
     # # put entire run history into variable for easier access
     # history = result.history
