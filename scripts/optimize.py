@@ -25,8 +25,6 @@ from display import display_costopt_graph
 
 # TODO parallellize this motherfucker. its SO fuckin slow oh my GOD
 
-# TODO graph solution
-
 # only one visible to main to keep things neat
 def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]):
     try:  # can add more types of optimization later (carbon, water use, etc)
@@ -43,8 +41,8 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
 
     # easy access to important variables!!
     # BOTH OF THESE ARE DIVIDED BY 10 RN BECAUSE OTHERWISE IT TAKES TOO LONG TO RUN FOR TESTING
-    population_size = 25 # will be used later in _evaluate for finding "x" array dimensions. default to 100
-    num_gens = 200  # number of generations to run
+    population_size = 250 # will be used later in _evaluate for finding "x" array dimensions. default to 100
+    num_gens = 1000  # number of generations to run
     num_threads = 8  # number of threads to use to speed this bitch UP
 
     # defining the progress bar up here so it's easier to find
