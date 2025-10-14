@@ -1,6 +1,5 @@
 
 import string
-import matplotlib.pyplot as plt
 import numpy as np
 
 from alive_progress import alive_bar
@@ -20,20 +19,25 @@ from pymoo.termination import get_termination
 
 # DELETE THIS SECTION WHEN DONE TESTING THIS FILE
 from excel_read import get_conditions, get_plants
-from display import display_costopt_graph
+from display import display_graph
 
 
-# TODO parallellize this motherfucker. its SO fuckin slow oh my GOD
+# num_threads = 8
+# thread_pool = ThreadPool(num_threads)
+
+
+# TODO parallellize. set up multithreading
 
 # only one visible to main to keep things neat
 def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]):
-    try:  # can add more types of optimization later (carbon, water use, etc)
-        if opt_type == 'cost':
-            return opt_cost(plants, conditions)
-        else:
-            raise Exception(f'Type {opt_type} not recognized (or not yet implemented).')
-    except Exception as e:
-        print(e)
+    # try:  # can add more types of optimization later (carbon, water use, etc)
+    if opt_type == 'cost':
+        return opt_cost(plants, conditions)
+    else:
+        print('error')
+        # raise Exception(f'Type {opt_type} not recognized (or not yet implemented).')
+    # except Exception as e:
+    #     print(e)
 
 # DEFINING THE OPTIMIZATION FUNCTION FOR COST!!!
 # I REALLY WISH I COULD PUT MARKDOWN IN HERE. INSTEAD ILL JUST YELL IG
@@ -41,9 +45,10 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
 
     # easy access to important variables!!
     # BOTH OF THESE ARE DIVIDED BY 10 RN BECAUSE OTHERWISE IT TAKES TOO LONG TO RUN FOR TESTING
-    population_size = 250 # will be used later in _evaluate for finding "x" array dimensions. default to 100
-    num_gens = 1000  # number of generations to run
-    num_threads = 8  # number of threads to use to speed this bitch UP
+    population_size = 1000 # will be used later in _evaluate for finding "x" array dimensions. default to 100
+    num_gens = 250  # number of generations to run
+    num_threads = 4  # number of threads to use to speed this bitch UP
+
 
     # defining the progress bar up here so it's easier to find
     progress_bar = alive_bar(
@@ -64,7 +69,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
                 xl.append(0)
                 xu.append(p.max_output)
 
-            # number of constraints = number of plants (17), demand met (1)
+            # number of constraints = number of plants (16), demand met (1)
             num_constr = len(plants) + 1
             super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=num_constr, vtype=int, **kwargs)
 
@@ -82,7 +87,6 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
 
                 # constraint violations pt 1: mw generated <= max
                 # constraint violations pt 2: no more than one plant is not running at max or 0
-                # i think it works? it just somehow cant find a good answer in a full minute of running
                 notok = mw < ma and mw != 0
                 if notok and notok_counter < 1: 
                     notok_counter += 1
@@ -94,6 +98,10 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
             if demand_met < 0: demand_met = 0  # sets to 0 if the demand was successfully met
             constraint_violations.append(demand_met)
 
+            # TODO add/improve constraints
+            #   add one to make sure more expensive plants arent chosen if there are cheaper options?
+            #   like if theres a 12 cent plant at 0, there shouldnt be a 14 cent at max
+
             out["F"] = round((x * 1000 * np.array(plant_costs)).sum(), 2)  # total cost of w from plants (NOT MW)
             out["G"] = constraint_violations # <= 0 (all values false) is ok, > 0 is not
 
@@ -103,7 +111,13 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
             bar()
 
 
-    prb = CostOptProblem()
+    thread_pool = ThreadPool(num_threads)
+
+
+    prb = CostOptProblem(
+        parallelization=('starmap', thread_pool.starmap)
+    )
+
 
     alg = gen_alg(
         pop_size=population_size,
@@ -113,16 +127,27 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
         eliminate_duplicates=True
     )
 
+
+    # TODO better termination
+    # id like to have it terminate maybe a hundred generations after the first feasible solution is found?
+    trm = get_termination(
+        'n_gen',
+        num_gens
+    )
+
     with progress_bar as bar:
         result = minimize(  # go go gadget cheap electric
             problem=prb,
-            algorithm=alg,  # defined directly above this
-            termination=get_termination('n_gen', num_gens),
+            algorithm=alg,
+            termination=trm,
             verbose=False,
             callback=ProgressBarCallback(),
-            save_history=True,
+            save_history=False,  # can change if necessary, i just dont wanna waste resources im not even using lol
             return_least_infeasible=True
         )
+
+    thread_pool.close()
+    thread_pool.join()
 
     # print best solution achieved
     print('Best solution found: \nX = %s\nF = %s\nG = %s' % (result.X, result.F, result.G))
@@ -133,14 +158,16 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
         #       f'    mW produced:    {x} (max: {plant_info[i][2]})\n'
         #       f'    Total price:    ${round(x * 1000 * plant_info[i][1], 2)}')
         print(f'{x}/{plant_info[i][2]}   {plant_info[i][1]}')
-    
-    # prb.pool.close()
-    return result.X
 
+    return result.X
 
 # TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY.
 plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
 conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
 
 optimal_costs = optimize('cost', plants, conditions)
-display_costopt_graph(optimal_costs, plants)
+display_graph('cost', optimal_costs, plants)
+
+# thread_pool.close()
+# thread_pool.join()
+
