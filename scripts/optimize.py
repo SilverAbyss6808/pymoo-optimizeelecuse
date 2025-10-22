@@ -9,7 +9,6 @@ from powerplant import PowerPlant
 from pymoo.algorithms.soo.nonconvex.ga import GA as gen_alg 
 from pymoo.core.callback import Callback
 from pymoo.core.problem import ElementwiseProblem
-from pymoo.core.problem import StarmapParallelization
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.repair.rounding import RoundingRepair
@@ -22,12 +21,7 @@ from excel_read import get_conditions, get_plants
 from display import display_graph
 
 
-# num_threads = 8
-# thread_pool = ThreadPool(num_threads)
-
-
 # TODO parallellize. set up multithreading
-
 # only one visible to main to keep things neat
 def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]):
     # try:  # can add more types of optimization later (carbon, water use, etc)
@@ -41,13 +35,12 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
 # DEFINING THE OPTIMIZATION FUNCTION FOR COST!!!
 # I REALLY WISH I COULD PUT MARKDOWN IN HERE. INSTEAD ILL JUST YELL IG
-def opt_cost(plants: list[PowerPlant], conditions: list[float]):
+def opt_cost(plants: list[PowerPlant], conditions: list[float], pop_size=100, n_gens=250):
 
     # easy access to important variables!!
     # BOTH OF THESE ARE DIVIDED BY 10 RN BECAUSE OTHERWISE IT TAKES TOO LONG TO RUN FOR TESTING
-    population_size = 1000 # will be used later in _evaluate for finding "x" array dimensions. default to 100
-    num_gens = 250  # number of generations to run
-    num_threads = 4  # number of threads to use to speed this bitch UP
+    population_size = pop_size # will be used later in _evaluate for finding "x" array dimensions. default to 100
+    num_gens = n_gens  # number of generations to run
 
 
     # defining the progress bar up here so it's easier to find
@@ -111,12 +104,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
             bar()
 
 
-    thread_pool = ThreadPool(num_threads)
-
-
-    prb = CostOptProblem(
-        parallelization=('starmap', thread_pool.starmap)
-    )
+    prb = CostOptProblem()
 
 
     alg = gen_alg(
@@ -128,8 +116,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
     )
 
 
-    # TODO better termination
-    # id like to have it terminate maybe a hundred generations after the first feasible solution is found?
+    # terminations okay for now
     trm = get_termination(
         'n_gen',
         num_gens
@@ -145,9 +132,6 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float]):
             save_history=False,  # can change if necessary, i just dont wanna waste resources im not even using lol
             return_least_infeasible=True
         )
-
-    thread_pool.close()
-    thread_pool.join()
 
     # print best solution achieved
     print('Best solution found: \nX = %s\nF = %s\nG = %s' % (result.X, result.F, result.G))
