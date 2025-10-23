@@ -1,9 +1,10 @@
 
 import string
 import numpy as np
+import threading
+import time
 
 from alive_progress import alive_bar
-from multiprocessing.pool import ThreadPool
 from powerplant import PowerPlant
 
 from pymoo.algorithms.soo.nonconvex.ga import GA as gen_alg 
@@ -23,27 +24,50 @@ from display import display_graph
 
 # TODO parallellize. set up multithreading
 # only one visible to main to keep things neat
-def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]):
-    # try:  # can add more types of optimization later (carbon, water use, etc)
-    if opt_type == 'cost':
-        return opt_cost(plants, conditions)
-    else:
-        print('error')
-        # raise Exception(f'Type {opt_type} not recognized (or not yet implemented).')
-    # except Exception as e:
-    #     print(e)
+def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float], n_runs=16, n_threads=8):
+    results = []
+    n_batches = int(n_runs/n_threads)
+    opt_start = time.time()
+
+    match opt_type:
+        case 'cost':
+            for b in range(n_batches):  # total number of times that each thread has to run in order to hit n_runs, if that makes sense
+                threads = []
+                time_start = time.time()
+                for i in range(n_threads):
+                    t = threading.Thread(target=opt_cost, args=(plants, conditions, results))
+                    threads.append(t)
+
+                for i, t in enumerate(threads): 
+                    t.start()
+                    print(f'Thread {i+1}/{n_threads} in batch {b+1}/{n_batches} running...')  # lets you know what threads are running
+
+                for t in threads: 
+                    t.join()
+                print(f'Batch {b+1} threads done in {round(time.time() - time_start, 2)}s.')
+
+        case _: print('error')
+    
+    opt_runtime = time.time() - opt_start
+    print(f'Optimization done in {round(opt_runtime, 2)}s.')
+    if results != []:
+        results = np.array(results)
+        lowest_cost = min([result.F[0] for result in results])
+        best_result = results[np.where([result.F for result in results] == lowest_cost)[0]][0]
+        print('all results')
+        print([float(result.F[0]) for result in results])
+        print(best_result)
+        print_result(best_result)
+    else: print(f'No feasible solution found.')
+
+
 
 # DEFINING THE OPTIMIZATION FUNCTION FOR COST!!!
 # I REALLY WISH I COULD PUT MARKDOWN IN HERE. INSTEAD ILL JUST YELL IG
-def opt_cost(plants: list[PowerPlant], conditions: list[float], pop_size=100, n_gens=250):
+def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, population_size=100, num_gens=500):
 
-    # easy access to important variables!!
-    # BOTH OF THESE ARE DIVIDED BY 10 RN BECAUSE OTHERWISE IT TAKES TOO LONG TO RUN FOR TESTING
-    population_size = pop_size # will be used later in _evaluate for finding "x" array dimensions. default to 100
-    num_gens = n_gens  # number of generations to run
-
-
-    # defining the progress bar up here so it's easier to find
+    # defining the progress bar up here so it's easier to 
+    # it really doesnt like running multithreaded. so its off for now
     progress_bar = alive_bar(
         total=num_gens, 
         title='Optimizing data, please wait...',
@@ -101,7 +125,8 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], pop_size=100, n_
 
     class ProgressBarCallback(Callback):  # updates the progress bar every generation
         def notify(self, alg):  # it won't let me not have an algorithm variable, even if its not used. lmao
-            bar()
+            # bar()
+            pass
 
 
     prb = CostOptProblem()
@@ -122,17 +147,25 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], pop_size=100, n_
         num_gens
     )
 
-    with progress_bar as bar:
-        result = minimize(  # go go gadget cheap electric
-            problem=prb,
-            algorithm=alg,
-            termination=trm,
-            verbose=False,
-            callback=ProgressBarCallback(),
-            save_history=False,  # can change if necessary, i just dont wanna waste resources im not even using lol
-            return_least_infeasible=True
-        )
 
+    # with progress_bar as bar:
+    result = minimize(  # go go gadget cheap electric
+        problem=prb,
+        algorithm=alg,
+        termination=trm,
+        verbose=False,
+        callback=ProgressBarCallback(),
+        save_history=False,  # can change if necessary, i just dont wanna waste resources im not even using lol
+        return_least_infeasible=True
+    )
+
+
+    # avoid nonetypes in the result array
+    if sum(result.G) == 0:
+        result_list.append(result)
+
+
+def print_result(result):  # helper to print a result
     # print best solution achieved
     print('Best solution found: \nX = %s\nF = %s\nG = %s' % (result.X, result.F, result.G))
 
@@ -143,15 +176,11 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], pop_size=100, n_
         #       f'    Total price:    ${round(x * 1000 * plant_info[i][1], 2)}')
         print(f'{x}/{plant_info[i][2]}   {plant_info[i][1]}')
 
-    return result.X
 
 # TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY.
 plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
 conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
 
 optimal_costs = optimize('cost', plants, conditions)
-display_graph('cost', optimal_costs, plants)
-
-# thread_pool.close()
-# thread_pool.join()
+# display_graph('cost', optimal_costs, plants)
 
