@@ -1,8 +1,16 @@
 
+import ctypes
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from powerplant import PowerPlant
+import sys
+import win32api as wapi
+import win32gui as wgui
+
+
+popup_title_default = 'PyMOO Optimization'
+
 
 def display_graph(type: str, result_list: list, plants: list[PowerPlant]):
     if (type == 'cost'):
@@ -53,3 +61,12 @@ def display_costopt_graph(mw_generated: list[int], plants: list[PowerPlant]):
     
     # show graph
     plt.show()
+
+
+# this function just won't work if you're not on windows. ill add unix later
+def popup(message, title=popup_title_default):
+    if sys.platform == 'win32': wgui.MessageBox(0, message, title, 0x01040040)
+    elif sys.platform == 'linux': print(f'Linux popup implementation soon.')
+    elif sys.platform == 'darwin': print(f'MacOS popup implementation soon. Maybe. I don\'t like MacOS.')
+    else: print(f'Platform {sys.platform} has no plans for popup implementation.')
+
