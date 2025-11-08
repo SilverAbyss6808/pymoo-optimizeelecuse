@@ -31,54 +31,55 @@ def get_plants(path: string = temp_excel_path):
             for row in rows:
                 # index of cell is (actual column number - 1)
                 # or you could just like. start counting the columns from zero. rather than one. lmao
-                id = row[0]
-                name = row[1]
-                type = row[2]
-                demand = row[11]
+                if row[0] is not None:
+                    id = row[0]
+                    name = row[1]
+                    type = row[2]
+                    demand = row[11]
 
-                # these are dependent on amount of sun and wind
-                min_output = row[6]
-                max_output = row[8]
+                    # these are dependent on amount of sun and wind
+                    min_output = row[6]
+                    max_output = row[8]
 
-                conditions = get_conditions(path)  # they call me john programming
+                    conditions = get_conditions(path)  # they call me john programming
 
-                if str(min_output)[0] == '=': 
-                    split_string = min_output.split(',')
-                    if type.lower() == "wind":
-                        min_output = conditions[2] * float(split_string[1])  # multiply by wind constraint
-                    elif type.lower == "solar":
-                        min_output = conditions[1] * float(split_string[1])  # multiply by sun constraint
-                    else: print(f'Error converting from Excel IF.')
+                    if str(min_output)[0] == '=': 
+                        split_string = min_output.split(',')
+                        if type.lower() == "wind":
+                            min_output = conditions[2] * float(split_string[1])  # multiply by wind constraint
+                        elif type.lower == "solar":
+                            min_output = conditions[1] * float(split_string[1])  # multiply by sun constraint
+                        else: print(f'Error converting from Excel IF.')
 
-                if str(max_output)[0] == '=': 
-                    split_string = max_output.split(',')
-                    if type.lower() == "wind":
-                        max_output = conditions[2] * float(split_string[1])  # multiply by wind constraint
-                    elif type.lower == "solar":
-                        max_output = conditions[1] * float(split_string[1])  # multiply by sun constraint
-                    else: print(f'Error converting from Excel IF.')
+                    if str(max_output)[0] == '=': 
+                        split_string = max_output.split(',')
+                        if type.lower() == "wind":
+                            max_output = conditions[2] * float(split_string[1])  # multiply by wind constraint
+                        elif type.lower == "solar":
+                            max_output = conditions[1] * float(split_string[1])  # multiply by sun constraint
+                        else: print(f'Error converting from Excel IF.')
 
-                # these guys are sometimes excel =if formulas, so process a bit before adding them to the plant
-                plant_cost = row[4]
-                wholesale_cost = row[13]
+                    # these guys are sometimes excel =if formulas, so process a bit before adding them to the plant
+                    plant_cost = row[4]
+                    wholesale_cost = row[13]
 
-                # if plant cost is an if statement, it'll be in the form =IF(demand>a certain amount, 0.11, else 0.12)
-                if str(plant_cost)[0] == '=':  
-                    split_string = plant_cost.split(', ')
-                    price_cutoff = float((split_string[0].split('>'))[1])
-                    cost_if_true = float(split_string[1])
-                    cost_if_false = float((split_string[2].split(')'))[0])
+                    # if plant cost is an if statement, it'll be in the form =IF(demand>a certain amount, 0.11, else 0.12)
+                    if str(plant_cost)[0] == '=':  
+                        split_string = plant_cost.split(', ')
+                        price_cutoff = float((split_string[0].split('>'))[1])
+                        cost_if_true = float(split_string[1])
+                        cost_if_false = float((split_string[2].split(')'))[0])
 
-                    if demand > price_cutoff: plant_cost = cost_if_true
-                    else: plant_cost = cost_if_false
+                        if demand > price_cutoff: plant_cost = cost_if_true
+                        else: plant_cost = cost_if_false
 
-                # same deal as above but for wholesale costs
-                # =IF(demand>0, plant cost, else 0)
-                if str(wholesale_cost)[0] == '=':
-                    if demand > 0: wholesale_cost = plant_cost
-                    else: wholesale_cost = 0.0
+                    # same deal as above but for wholesale costs
+                    # =IF(demand>0, plant cost, else 0)
+                    if str(wholesale_cost)[0] == '=':
+                        if demand > 0: wholesale_cost = plant_cost
+                        else: wholesale_cost = 0.0
 
-                plants.append(PowerPlant(id, name, type, plant_cost, min_output, max_output, demand, wholesale_cost))
+                    plants.append(PowerPlant(id, name, type, plant_cost, min_output, max_output, demand, wholesale_cost))
 
             return plants
 
