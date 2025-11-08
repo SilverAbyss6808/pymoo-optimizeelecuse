@@ -25,9 +25,8 @@ import matplotlib.pyplot as plt
 
 
 # only one visible to main to keep things neat
-# TODO do with fourish plants first
 def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]):
-    pop_size = 100
+    pop_size = 500
     n_gens = 100
 
     n_runs = 16
@@ -67,7 +66,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
             # comment all above case and uncomment this to show generation graph
             # opt_cost(plants, conditions, results, pop_size, n_gens)
 
-        case _: print('error')
+        case _: print('Optimization type not recognized.')
     
     opt_runtime = time.time() - opt_start
     dialog = f'Optimization done in {round(opt_runtime, 2)}s.'  # variable for popup box
@@ -107,6 +106,8 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
                 xl.append((p.min_output - p.max_output) / 4)
                 xu.append(p.max_output - p.min_output)
 
+                # TODO add optimal solution manually
+
             # number of constraints = number of plants (16), demand met (1)
             num_constr = len(plants) + 1
             super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=num_constr, vtype=int, **kwargs)
@@ -127,10 +128,11 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
 
                 # its not graceful but it works
                 # ok so bad if:
-                #   less than min but not 0 OR greater than max
-                #   more than one less than max but not 0
+                #   1. less than min but not 0 OR greater than max
+                #   2. more than one less than max but not 0
                 if (mw < mi and mw != 0) or mw > ma:  # if EITHER between min and zero OR greater than max
                     constraint_violations.append(1)
+                # this one kinda sucks nuts actually. lmao
                 # elif mw < ma and mw != 0:  # if less than max but not zero (okay one time)
                 #     if notok_counter < 1:
                 #         notok_counter += 1
@@ -143,7 +145,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             if demand_met < 0: demand_met = 0  # sets to 0 if the demand was successfully met
             constraint_violations.append(demand_met)
 
-            # TODO add/improve constraints
+            # TODO improve constraints
             #   add one to make sure more expensive plants arent chosen if there are cheaper options?
             #   like if theres a 12 cent plant at 0, there shouldnt be a 14 cent at max
 
@@ -177,7 +179,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
         problem=prb,
         algorithm=alg,
         termination=trm,
-        seed=int(time.time()),
+        # seed=int(time.time()),
         verbose=False,
         callback=ProgressBarCallback(),
         save_history=False,  # can change if necessary, i just dont wanna waste resources im not even using lol
@@ -187,9 +189,9 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
     result.X = normalize_x(result.X, [p.min_output for p in plants])
 
     # avoid nonetypes in the result array
-    if sum(result.G) == 0:
-        result_list.append(result)
-    # result_list.append(result)
+    # if sum(result.G) == 0:
+    #     result_list.append(result)
+    result_list.append(result)
 
     # graph gens on x and F on y. ONLY WORKS WHEN RUNNING ON MAIN THREAD
     # print_generation_graph(result.history)
@@ -253,13 +255,14 @@ def normalize_x(x, plant_mins):
 
 
 # TODO make it so bar() can alert a progress bar from a different function. is that possible?
-# OR: progress bar in popup. something to consider. chew on. turn over in your brain
+# OR: progress bar in popup. something to consider. chew on. turn over in your brain. et cetera
 
 
 # =================== TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY. ===================
-plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
-conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
+
+plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
+conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
 
 optimal_costs = optimize('cost', plants, conditions)
-# disp.display_graph('cost', optimal_costs, plants)
+# display.display_graph('cost', optimal_costs, plants)
 
