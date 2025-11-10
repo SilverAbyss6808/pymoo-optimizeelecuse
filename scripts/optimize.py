@@ -1,11 +1,12 @@
 
-import display
-import string
+import math
 import numpy as np
+import string
 import time
 import threading
 
 from alive_progress import alive_bar
+from display import display_graph, popup
 from powerplant import PowerPlant
 
 from pymoo.algorithms.soo.nonconvex.ga import GA as gen_alg 
@@ -25,7 +26,7 @@ import matplotlib.pyplot as plt
 
 
 # only one visible to main to keep things neat
-def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]):
+def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float], **kwargs):
     pop_size = 500
     n_gens = 100
 
@@ -45,6 +46,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
     match opt_type:
         case 'cost':
+            run_count = 1
             for b in range(n_batches):  # total number of times that each thread has to run in order to hit n_runs, if that makes sense
                 # with progress_bar as bar:
                 threads = []
@@ -52,7 +54,10 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
                 for i in range(n_threads):
                     t = threading.Thread(target=opt_cost, 
-                                            args=(plants, conditions, results, pop_size, n_gens))
+                                        args=(plants, conditions, results, pop_size, 
+                                         n_gens))
+                                        # round((float(n_gens/n_runs))*run_count)))  # TESTING LINE. USED FOR SHOWING THE DIFFERENCE MADE BY HAVING A DIFFERENT NUMBER OF GENS
+                    run_count += 1
                     threads.append(t)
 
                 for i, t in enumerate(threads): 
@@ -81,11 +86,18 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
         print_result(best_result)
         dialog += f'\n   F: {best_result.F[0]}\n   Sum of CV: {(best_result.G).sum()}'
     else:
+        best_result = None
         add = f'No feasible solution found.' 
         print(add)
         dialog += '\n' + add
 
-    display.popup(dialog)
+    popup(dialog)
+
+    if kwargs['graph_results']:
+        histories=[result.history for result in results]
+        display_graph('gen_vs_res', histories=histories)
+    
+    if best_result != None: return best_result.X
 
 
 # DEFINING THE OPTIMIZATION FUNCTION FOR COST!!!
@@ -118,7 +130,6 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
 
             power_demand = conditions[0]  # 13600 mW right now
             plant_costs = [p.plant_cost for p in plants]
-            notok_counter = 0
 
             x = normalize_x(x, [p.min_output for p in plants])
 
@@ -132,12 +143,6 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
                 #   2. more than one less than max but not 0
                 if (mw < mi and mw != 0) or mw > ma:  # if EITHER between min and zero OR greater than max
                     constraint_violations.append(1)
-                # this one kinda sucks nuts actually. lmao
-                # elif mw < ma and mw != 0:  # if less than max but not zero (okay one time)
-                #     if notok_counter < 1:
-                #         notok_counter += 1
-                #         constraint_violations.append(0)
-                #     else: constraint_violations.append(1)
                 else: constraint_violations.append(0)
                     
             # constraint violations pt 3: was the demand met?
@@ -182,11 +187,16 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
         # seed=int(time.time()),
         verbose=False,
         callback=ProgressBarCallback(),
-        save_history=False,  # can change if necessary, i just dont wanna waste resources im not even using lol
+        save_history=True,  # can change if necessary, i just dont wanna waste resources im not even using lol
         return_least_infeasible=True
     )
 
     result.X = normalize_x(result.X, [p.min_output for p in plants])
+
+    # TODO round x to nearest 100 (or 10), then make sure constraints still arent violated and stuff
+    # also have one that can not be rounded? like, after all rounding is done, add plants until a plant puts
+    # the total over where it needs to be, then only pull what's necessary from that plant
+    # i think that makes sense. its so late and i have so much caffeine in my bloodstream
 
     # avoid nonetypes in the result array
     # if sum(result.G) == 0:
@@ -194,7 +204,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
     result_list.append(result)
 
     # graph gens on x and F on y. ONLY WORKS WHEN RUNNING ON MAIN THREAD
-    # print_generation_graph(result.history)
+    # display_graph('gen_vs_res', history=result.history)
 
 
 def print_result(result):  # helper to print a result in a nice pretty format
@@ -207,13 +217,6 @@ def print_result(result):  # helper to print a result in a nice pretty format
         #       f'    mW produced:    {x} (max: {plant_info[i][2]})\n'
         #       f'    Total price:    ${round(x * 1000 * plant_info[i][1], 2)}')
         print(f'{x}/{plant_info[i][2]}   {plant_info[i][1]}')
-
-
-def print_generation_graph(history):  # helper to print cost per generation. REQUIRED TO RUN ON MAIN THREAD
-    xvals = [run.n_gen for run in history]
-    yvals = [run.pop.get("F").min() for run in history]
-    plt.bar(xvals, yvals)
-    plt.show()
 
 
 # tournament selection that picks option with fewest violations FIRST, then goes off min
@@ -263,6 +266,5 @@ def normalize_x(x, plant_mins):
 plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
 conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
 
-optimal_costs = optimize('cost', plants, conditions)
-# display.display_graph('cost', optimal_costs, plants)
+optimal_costs = optimize('cost', plants, conditions, graph_results=False)
 
