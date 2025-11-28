@@ -55,7 +55,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                 for i in range(n_threads):
                     t = threading.Thread(target=opt_cost, 
                                         args=(plants, conditions, results, pop_size, 
-                                         n_gens))
+                                        n_gens))
                                         # round((float(n_gens/n_runs))*run_count)))  # TESTING LINE. USED FOR SHOWING THE DIFFERENCE MADE BY HAVING A DIFFERENT NUMBER OF GENS
                     run_count += 1
                     threads.append(t)
@@ -91,11 +91,22 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
         print(add)
         dialog += '\n' + add
 
-    popup(dialog)
+    # KWARG EVALUATIONS
+    if 'alert_when_done' in kwargs and kwargs['alert_when_done'] == True: popup(dialog)
 
-    if kwargs['graph_results']:
-        histories=[result.history for result in results]
-        display_graph('gen_vs_res', histories=histories)
+    if results.any() != None:  # these next few arent gonna work if the result list is empty lmao
+        if 'graph_gens' in kwargs:
+            which = kwargs['graph_gens']  # right now, options are 'best_run' and 'all_runs'
+            if which == 'best_run':
+                if best_result != None: display_graph('gen_vs_res', history=best_result.history)
+            elif which == 'all_runs':
+                histories=[result.history for result in results]
+                display_graph('multi_gen_vs_res', histories=histories)
+            else: print(f'"{which}" not a valid type for kwarg "graph_gens".')
+
+        if 'graph_best_res' in kwargs and kwargs['graph_best_res'] == True:
+            display_graph('cost_per_plant', result_list=best_result.X, plant_list=plants)
+
     
     if best_result != None: return best_result.X
 
@@ -118,7 +129,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
                 xl.append((p.min_output - p.max_output) / 4)
                 xu.append(p.max_output - p.min_output)
 
-                # TODO add optimal solution manually
+                # TODO add optimal solution manually w/ function
 
             # number of constraints = number of plants (16), demand met (1)
             num_constr = len(plants) + 1
@@ -132,6 +143,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             plant_costs = [p.plant_cost for p in plants]
 
             x = normalize_x(x, [p.min_output for p in plants])
+            x = round_x(x)
 
             for ind, mw in enumerate(x):
                 mi = plants[ind].min_output
@@ -150,10 +162,11 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             if demand_met < 0: demand_met = 0  # sets to 0 if the demand was successfully met
             constraint_violations.append(demand_met)
 
-            # TODO improve constraints
-            #   add one to make sure more expensive plants arent chosen if there are cheaper options?
-            #   like if theres a 12 cent plant at 0, there shouldnt be a 14 cent at max
+            # TODO constraint violations pt. 4: add tiers of price (.07, .08, etc) and make it so its not acceptable if a more expensive 
+            #      tier is being used while a cheaper teir isnt full yet?
+            
 
+            # function ends here
             out["F"] = round((x * 1000 * np.array(plant_costs)).sum(), 2)
             out["G"] = constraint_violations # <= 0 (all values false) is ok, > 0 is not
 
@@ -168,7 +181,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
         pop_size=population_size,
         sampling=IntegerRandomSampling(),
         crossover=SBX(repair=RoundingRepair()),
-        # selection=TournamentSelection(pressure=2, func_comp=binary_cv_tourney),
+        selection=TournamentSelection(pressure=2, func_comp=binary_cv_tourney),
         mutation=PM(prob=1, repair=RoundingRepair()),
         eliminate_duplicates=True
     )
@@ -192,6 +205,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
     )
 
     result.X = normalize_x(result.X, [p.min_output for p in plants])
+    result.X = round_x(result.X)
 
     # TODO round x to nearest 100 (or 10), then make sure constraints still arent violated and stuff
     # also have one that can not be rounded? like, after all rounding is done, add plants until a plant puts
@@ -257,14 +271,25 @@ def normalize_x(x, plant_mins):
     return np.array(normalized_x)
 
 
+# round x vals to nearest 10 to avoid values like 799/800
+def round_x(unrounded_x):
+    rounded_x = []
+    for x in unrounded_x:
+        rounded_x.append(round(x, -1))  # -1 means round to 10 instead of 1
+    return np.array(rounded_x)
+
+
 # TODO make it so bar() can alert a progress bar from a different function. is that possible?
 # OR: progress bar in popup. something to consider. chew on. turn over in your brain. et cetera
 
 
 # =================== TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY. ===================
 
-plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
-conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
+plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
+conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
 
-optimal_costs = optimize('cost', plants, conditions, graph_results=False)
+optimal_costs = optimize('cost', plants, conditions, 
+                         graph_gens='best_run', 
+                         graph_best_res=False,
+                         alert_when_done=False)
 

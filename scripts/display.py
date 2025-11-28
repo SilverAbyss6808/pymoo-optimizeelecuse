@@ -1,6 +1,7 @@
 
 import ctypes
 import math
+import matplotlib.colors as mpc
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,9 +16,10 @@ popup_title_default = 'PyMOO Optimization'
 
 def display_graph(type: str, **kwargs):
     match type:
-        case 'cost_per_plant':  return display_costopt_graph(kwargs['result_list'], kwargs['plant_list'])
-        case 'gen_vs_res':      return display_diffnum_generation_graph(kwargs['histories'])
-        case _:                 print('Error with display_graph function.')
+        case 'cost_per_plant':      return display_costopt_graph(kwargs['result_list'], kwargs['plant_list'])
+        case 'gen_vs_res':          return display_generation_graph(kwargs['history'])
+        case 'multi_gen_vs_res':    return display_diffnum_generation_graph(kwargs['histories'])
+        case _:                     print('Error with display_graph function.')
 
 
 # this function just won't work if you're not on windows. ill add linux later. FUCK MAC RAHHHHHHHHH
@@ -48,6 +50,7 @@ def display_costopt_graph(mw_generated: list[int], plants: list[PowerPlant]):
         colors = []
         for i in range(len(mw_generated)):
             colors.append(list(np.random.random(size=3)))
+            # TODO make colors mean something? idk if i can here but we'll see
 
         # resizes bars to fit together nicely. adapted from https://stackoverflow.com/questions/70477458/how-can-i-plot-bar-plots-with-variable-widths-but-without-gaps-in-python-and-ad
         x_marks = []
@@ -76,17 +79,27 @@ def display_costopt_graph(mw_generated: list[int], plants: list[PowerPlant]):
     else: popup('Cannot graph results, no best solution was found.')
 
 
-def display_generation_graph(history, rows=1, cols=1, plot_num=1):  # graph cost per generation. REQUIRED TO RUN ON MAIN THREAD
+def display_generation_graph(history, rows=1, cols=1, plot_num=1, **kwargs):  # graph cost per generation. REQUIRED TO RUN ON MAIN THREAD
     # axis values
     xvals = [run.n_gen for run in history]
     yvals = [run.pop.get("F").min() for run in history]
+    gvals = [run.pop.get("G").sum() for run in history]
+
+    colors = []
+    for cvsum in gvals:
+        if cvsum > 0: colors.append('red')
+        else: colors.append('green')
+
     plt.subplot(rows, cols, plot_num)
-    plt.bar(xvals, yvals, color=np.random.random(size=3))
+    plt.bar(xvals, yvals, color=colors)
 
     # graph/axis titles
     # plt.xlabel('Generation')
     # plt.ylabel('Cost (e10^6)')
     plt.title(f'{max(xvals)} Gens, F={int(yvals[max(xvals) - 1])}')
+
+    if 'dontplotyet' not in kwargs:
+        plt.show()
 
 
 def display_diffnum_generation_graph(histories):
@@ -95,7 +108,7 @@ def display_diffnum_generation_graph(histories):
     cols = int(num_graphs / rows) + 1
 
     for i, history in enumerate(histories):
-        display_generation_graph(history, rows, cols, i+1)
+        display_generation_graph(history, rows, cols, i+1, dontplotyet=True)
 
     # plt.tight_layout(pad=0.5)
     plt.subplots_adjust(left=0.05, right=0.95, 
