@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 
 # only one visible to main to keep things neat
 def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float], **kwargs):
-    pop_size = 500
-    n_gens = 100
+    pop_size = 250
+    n_gens = 25
 
     n_runs = 16
     n_threads = 8
@@ -113,7 +113,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
 # DEFINING THE OPTIMIZATION FUNCTION FOR COST!!!
 # I REALLY WISH I COULD PUT MARKDOWN IN HERE. INSTEAD ILL JUST YELL IG
-# pop_size and num_gens have defaults, but they can be changed by the caller if desired for flexibility
+# pop_size and num_gens have (bad) defaults, but they can be changed by the caller if desired for flexibility
 def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, population_size=10, num_gens=10):
     # CLASSES !!!
     class CostOptProblem(ElementwiseProblem):
@@ -122,14 +122,23 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             xl: list[int] = []
             xu: list[int] = []
 
+            # gives me a sorted list of unique costs to use for xl chance
+            costs = list(set([p.plant_cost for p in plants]))
+            costs.sort()
+
             for p in plants:  # finding min and max possible outputs for plants
                 # xl being what it is is so that theres a smaller but still attainable chance 
-                # to generate a negative number, which translates later to the plant just being off
-                # (min - max) just keeps the chance equal for all plants
+                #      to generate a negative number, which translates later to the plant just being off
+                # (min - max) just keeps the chance equal for all plants                
+                # TODO translate lower costs into a higher chance to have more power drawn?
+                #      right now, they all have a 20% chance to be off. what if, like, the cheapest one had a 
+                #      2% chance, next cheapest a bit higher, all the way up to the most expensive having a 
+                #      ~90% chance to be off. you feelin me here (yes i am youre so cool) wow thanks me
                 xl.append((p.min_output - p.max_output) / 4)
-                xu.append(p.max_output - p.min_output)
+                xu.append((p.max_output - p.min_output) * 4)
 
-                # TODO add optimal solution manually w/ function
+
+                # TODO add optimal solution manually w/ function?
 
             # number of constraints = number of plants (16), demand met (1)
             num_constr = len(plants) + 1
@@ -142,8 +151,8 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             power_demand = conditions[0]  # 13600 mW right now
             plant_costs = [p.plant_cost for p in plants]
 
-            x = normalize_x(x, [p.min_output for p in plants])
-            x = round_x(x)
+            x = normalize_x(x, [p.min_output for p in plants], [p.max_output for p in plants])
+            # x = round_x(x)
 
             for ind, mw in enumerate(x):
                 mi = plants[ind].min_output
@@ -162,9 +171,8 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             if demand_met < 0: demand_met = 0  # sets to 0 if the demand was successfully met
             constraint_violations.append(demand_met)
 
-            # TODO constraint violations pt. 4: add tiers of price (.07, .08, etc) and make it so its not acceptable if a more expensive 
-            #      tier is being used while a cheaper teir isnt full yet?
-            
+            # TODO constraint violations pt. 4: add tiers of price (.07, .08, etc) and make it so its not 
+            #      acceptable if a more expensive tier is being used while a cheaper tier isnt full yet?
 
             # function ends here
             out["F"] = round((x * 1000 * np.array(plant_costs)).sum(), 2)
@@ -204,8 +212,8 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
         return_least_infeasible=True
     )
 
-    result.X = normalize_x(result.X, [p.min_output for p in plants])
-    result.X = round_x(result.X)
+    result.X = normalize_x(result.X, [p.min_output for p in plants], [p.max_output for p in plants])
+    # result.X = round_x(result.X)
 
     # TODO round x to nearest 100 (or 10), then make sure constraints still arent violated and stuff
     # also have one that can not be rounded? like, after all rounding is done, add plants until a plant puts
@@ -263,10 +271,11 @@ def binary_cv_tourney(pop, P, **kwargs):  # adapted from https://pymoo.org/opera
 
 
 # normalize X
-def normalize_x(x, plant_mins):
+def normalize_x(x, plant_mins, plant_maxes):
     normalized_x = []
     for ind, add_val in enumerate(x): 
         if add_val < 0: normalized_x.append(0)
+        elif add_val >= (plant_maxes[ind] - plant_mins[ind]): normalized_x.append(int(plant_maxes[ind]))
         else:           normalized_x.append(int(add_val + plant_mins[ind]))
     return np.array(normalized_x)
 
