@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 
 # only one visible to main to keep things neat
 def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float], **kwargs):
-    pop_size = 250
-    n_gens = 25
+    pop_size = 250  # 250
+    n_gens = 50  # 25
 
     n_runs = 16
     n_threads = 8
@@ -68,7 +68,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                     t.join()
                 print(f'Batch {b+1} threads done in {round(time.time() - time_start, 2)}s.')
             
-            # comment all above case and uncomment this to show generation graph
+            # comment all above case and uncomment this to show generation graph (i think i can delete this :P)
             # opt_cost(plants, conditions, results, pop_size, n_gens)
 
         case _: print('Optimization type not recognized.')
@@ -122,9 +122,20 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             xl: list[int] = []
             xu: list[int] = []
 
-            # gives me a sorted list of unique costs to use for xl chance
+            # gives me a sorted list of unique costs to use for xl/xu chance
             costs = list(set([p.plant_cost for p in plants]))
             costs.sort()
+
+            cdict_xl = {}
+            cdict_xu = {}
+
+            # this should make it so that lower costs have a higher chance of having their lower bound be 
+            # max and their upper bound be 
+            ind = len(costs)
+            for i, c in enumerate(costs): 
+                cdict_xl[c] = ind * (90 / len(costs))
+                ind -= 1
+                cdict_xu[c] = (i + 1) * (90 / len(costs))
 
             for p in plants:  # finding min and max possible outputs for plants
                 # xl being what it is is so that theres a smaller but still attainable chance 
@@ -134,14 +145,19 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
                 #      right now, they all have a 20% chance to be off. what if, like, the cheapest one had a 
                 #      2% chance, next cheapest a bit higher, all the way up to the most expensive having a 
                 #      ~90% chance to be off. you feelin me here (yes i am youre so cool) wow thanks me
+
+                # using 4 in place of everything to the right of the operators gives pretty damn 
+                # good answers already. just so you know.
                 xl.append((p.min_output - p.max_output) / 4)
                 xu.append((p.max_output - p.min_output) * 4)
 
+                # xl.append((p.min_output - p.max_output) / cdict_xl[p.plant_cost])
+                # xu.append((p.max_output - p.min_output) * cdict_xu[p.plant_cost])
 
                 # TODO add optimal solution manually w/ function?
 
-            # number of constraints = number of plants (16), demand met (1)
-            num_constr = len(plants) + 1
+            # number of constraints = number of plants (16), demand met (1), the tiers thing (1)
+            num_constr = len(plants) + 1 + 1
             super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=num_constr, vtype=int, **kwargs)
 
         def _evaluate(self, x, out):
@@ -173,6 +189,10 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
 
             # TODO constraint violations pt. 4: add tiers of price (.07, .08, etc) and make it so its not 
             #      acceptable if a more expensive tier is being used while a cheaper tier isnt full yet?
+            # dawg im gonna be real i think this is gonna have to be a tomorrow thing. i CANNOT think rn
+            if np.array(constraint_violations).sum() == 0:  # only do this if everything else is already fine
+                constraint_violations.append(0)
+            else: constraint_violations.append(0)
 
             # function ends here
             out["F"] = round((x * 1000 * np.array(plant_costs)).sum(), 2)
@@ -294,11 +314,16 @@ def round_x(unrounded_x):
 
 # =================== TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY. ===================
 
-plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
-conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
+# unedited version
+plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
+conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
+
+# edited version (less plants)
+# plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
+# conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
 
 optimal_costs = optimize('cost', plants, conditions, 
-                         graph_gens='best_run', 
-                         graph_best_res=False,
-                         alert_when_done=False)
+                        #  graph_best_res=True,
+                        #  alert_when_done=True,
+                         graph_gens='best_run')
 
