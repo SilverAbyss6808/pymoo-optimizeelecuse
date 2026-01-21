@@ -96,10 +96,10 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
     if results.any() != None:  # these next few arent gonna work if the result list is empty lmao
         if 'graph_gens' in kwargs:
-            which = kwargs['graph_gens']  # right now, options are 'best_run' and 'all_runs'
-            if which == 'best_run':
+            which = kwargs['graph_gens']  # right now, options are 'best' and 'all'
+            if which == 'best':
                 if best_result != None: display_graph('gen_vs_res', history=best_result.history)
-            elif which == 'all_runs':
+            elif which == 'all':
                 histories=[result.history for result in results]
                 display_graph('multi_gen_vs_res', histories=histories)
             else: print(f'"{which}" not a valid type for kwarg "graph_gens".')
@@ -323,7 +323,7 @@ conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
 # conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
 
 optimal_costs = optimize('cost', plants, conditions, 
-                        #  graph_best_res=True,
+                         graph_best_res=True,
                         #  alert_when_done=True,
-                         graph_gens='best_run')
+                         graph_gens='all')
 
