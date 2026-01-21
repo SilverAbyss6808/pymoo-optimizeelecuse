@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 
 # only one visible to main to keep things neat
 def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float], **kwargs):
-    pop_size = 500
-    n_gens = 100
+    pop_size = 250  # 250
+    n_gens = 50  # 25
 
     n_runs = 16
     n_threads = 8
@@ -55,7 +55,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                 for i in range(n_threads):
                     t = threading.Thread(target=opt_cost, 
                                         args=(plants, conditions, results, pop_size, 
-                                         n_gens))
+                                        n_gens))
                                         # round((float(n_gens/n_runs))*run_count)))  # TESTING LINE. USED FOR SHOWING THE DIFFERENCE MADE BY HAVING A DIFFERENT NUMBER OF GENS
                     run_count += 1
                     threads.append(t)
@@ -68,7 +68,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                     t.join()
                 print(f'Batch {b+1} threads done in {round(time.time() - time_start, 2)}s.')
             
-            # comment all above case and uncomment this to show generation graph
+            # comment all above case and uncomment this to show generation graph (i think i can delete this :P)
             # opt_cost(plants, conditions, results, pop_size, n_gens)
 
         case _: print('Optimization type not recognized.')
@@ -91,18 +91,29 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
         print(add)
         dialog += '\n' + add
 
-    popup(dialog)
+    # KWARG EVALUATIONS
+    if 'alert_when_done' in kwargs and kwargs['alert_when_done'] == True: popup(dialog)
 
-    if kwargs['graph_results']:
-        histories=[result.history for result in results]
-        display_graph('gen_vs_res', histories=histories)
+    if results.any() != None:  # these next few arent gonna work if the result list is empty lmao
+        if 'graph_gens' in kwargs:
+            which = kwargs['graph_gens']  # right now, options are 'best' and 'all'
+            if which == 'best':
+                if best_result != None: display_graph('gen_vs_res', history=best_result.history)
+            elif which == 'all':
+                histories=[result.history for result in results]
+                display_graph('multi_gen_vs_res', histories=histories)
+            else: print(f'"{which}" not a valid type for kwarg "graph_gens".')
+
+        if 'graph_best_res' in kwargs and kwargs['graph_best_res'] == True:
+            display_graph('cost_per_plant', result_list=best_result.X, plant_list=plants)
+
     
     if best_result != None: return best_result.X
 
 
 # DEFINING THE OPTIMIZATION FUNCTION FOR COST!!!
 # I REALLY WISH I COULD PUT MARKDOWN IN HERE. INSTEAD ILL JUST YELL IG
-# pop_size and num_gens have defaults, but they can be changed by the caller if desired for flexibility
+# pop_size and num_gens have (bad) defaults, but they can be changed by the caller if desired for flexibility
 def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, population_size=10, num_gens=10):
     # CLASSES !!!
     class CostOptProblem(ElementwiseProblem):
@@ -111,17 +122,42 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             xl: list[int] = []
             xu: list[int] = []
 
+            # gives me a sorted list of unique costs to use for xl/xu chance
+            costs = list(set([p.plant_cost for p in plants]))
+            costs.sort()
+
+            cdict_xl = {}
+            cdict_xu = {}
+
+            # this should make it so that lower costs have a higher chance of having their lower bound be 
+            # max and their upper bound be 
+            ind = len(costs)
+            for i, c in enumerate(costs): 
+                cdict_xl[c] = ind * (90 / len(costs))
+                ind -= 1
+                cdict_xu[c] = (i + 1) * (90 / len(costs))
+
             for p in plants:  # finding min and max possible outputs for plants
                 # xl being what it is is so that theres a smaller but still attainable chance 
-                # to generate a negative number, which translates later to the plant just being off
-                # (min - max) just keeps the chance equal for all plants
+                #      to generate a negative number, which translates later to the plant just being off
+                # (min - max) just keeps the chance equal for all plants                
+                # TODO translate lower costs into a higher chance to have more power drawn?
+                #      right now, they all have a 20% chance to be off. what if, like, the cheapest one had a 
+                #      2% chance, next cheapest a bit higher, all the way up to the most expensive having a 
+                #      ~90% chance to be off. you feelin me here (yes i am youre so cool) wow thanks me
+
+                # using 4 in place of everything to the right of the operators gives pretty damn 
+                # good answers already. just so you know.
                 xl.append((p.min_output - p.max_output) / 4)
-                xu.append(p.max_output - p.min_output)
+                xu.append((p.max_output - p.min_output) * 4)
 
-                # TODO add optimal solution manually
+                # xl.append((p.min_output - p.max_output) / cdict_xl[p.plant_cost])
+                # xu.append((p.max_output - p.min_output) * cdict_xu[p.plant_cost])
 
-            # number of constraints = number of plants (16), demand met (1)
-            num_constr = len(plants) + 1
+                # TODO add optimal solution manually w/ function?
+
+            # number of constraints = number of plants (16), demand met (1), the tiers thing (1)
+            num_constr = len(plants) + 1 + 1
             super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=num_constr, vtype=int, **kwargs)
 
         def _evaluate(self, x, out):
@@ -131,7 +167,8 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             power_demand = conditions[0]  # 13600 mW right now
             plant_costs = [p.plant_cost for p in plants]
 
-            x = normalize_x(x, [p.min_output for p in plants])
+            x = normalize_x(x, [p.min_output for p in plants], [p.max_output for p in plants])
+            # x = round_x(x)
 
             for ind, mw in enumerate(x):
                 mi = plants[ind].min_output
@@ -150,10 +187,14 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             if demand_met < 0: demand_met = 0  # sets to 0 if the demand was successfully met
             constraint_violations.append(demand_met)
 
-            # TODO improve constraints
-            #   add one to make sure more expensive plants arent chosen if there are cheaper options?
-            #   like if theres a 12 cent plant at 0, there shouldnt be a 14 cent at max
+            # TODO constraint violations pt. 4: add tiers of price (.07, .08, etc) and make it so its not 
+            #      acceptable if a more expensive tier is being used while a cheaper tier isnt full yet?
+            # dawg im gonna be real i think this is gonna have to be a tomorrow thing. i CANNOT think rn
+            if np.array(constraint_violations).sum() == 0:  # only do this if everything else is already fine
+                constraint_violations.append(0)
+            else: constraint_violations.append(0)
 
+            # function ends here
             out["F"] = round((x * 1000 * np.array(plant_costs)).sum(), 2)
             out["G"] = constraint_violations # <= 0 (all values false) is ok, > 0 is not
 
@@ -168,7 +209,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
         pop_size=population_size,
         sampling=IntegerRandomSampling(),
         crossover=SBX(repair=RoundingRepair()),
-        # selection=TournamentSelection(pressure=2, func_comp=binary_cv_tourney),
+        selection=TournamentSelection(pressure=2, func_comp=binary_cv_tourney),
         mutation=PM(prob=1, repair=RoundingRepair()),
         eliminate_duplicates=True
     )
@@ -191,7 +232,8 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
         return_least_infeasible=True
     )
 
-    result.X = normalize_x(result.X, [p.min_output for p in plants])
+    result.X = normalize_x(result.X, [p.min_output for p in plants], [p.max_output for p in plants])
+    # result.X = round_x(result.X)
 
     # TODO round x to nearest 100 (or 10), then make sure constraints still arent violated and stuff
     # also have one that can not be rounded? like, after all rounding is done, add plants until a plant puts
@@ -249,12 +291,21 @@ def binary_cv_tourney(pop, P, **kwargs):  # adapted from https://pymoo.org/opera
 
 
 # normalize X
-def normalize_x(x, plant_mins):
+def normalize_x(x, plant_mins, plant_maxes):
     normalized_x = []
     for ind, add_val in enumerate(x): 
         if add_val < 0: normalized_x.append(0)
+        elif add_val >= (plant_maxes[ind] - plant_mins[ind]): normalized_x.append(int(plant_maxes[ind]))
         else:           normalized_x.append(int(add_val + plant_mins[ind]))
     return np.array(normalized_x)
+
+
+# round x vals to nearest 10 to avoid values like 799/800
+def round_x(unrounded_x):
+    rounded_x = []
+    for x in unrounded_x:
+        rounded_x.append(round(x, -1))  # -1 means round to 10 instead of 1
+    return np.array(rounded_x)
 
 
 # TODO make it so bar() can alert a progress bar from a different function. is that possible?
@@ -263,8 +314,16 @@ def normalize_x(x, plant_mins):
 
 # =================== TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY. ===================
 
+# unedited version
 plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
 conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
 
-optimal_costs = optimize('cost', plants, conditions, graph_results=False)
+# edited version (less plants)
+# plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
+# conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
+
+optimal_costs = optimize('cost', plants, conditions, 
+                         graph_best_res=True,
+                        #  alert_when_done=True,
+                         graph_gens='all')
 
