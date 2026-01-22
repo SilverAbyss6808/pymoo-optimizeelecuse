@@ -21,8 +21,8 @@ from pymoo.optimize import minimize
 from pymoo.termination import get_termination
 
 # DELETE THIS SECTION WHEN DONE TESTING THIS FILE
-from excel_read import get_conditions, get_plants
-import matplotlib.pyplot as plt
+# from excel_read import get_conditions, get_plants
+from get_input import get_test_plants, get_test_conditions
 
 
 # only one visible to main to keep things neat
@@ -314,16 +314,12 @@ def round_x(unrounded_x):
 
 # =================== TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY. ===================
 
-# unedited version
-plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
-conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx')
+plants = get_test_plants()
+conditions = get_test_conditions()
 
-# edited version (less plants)
-# plants = get_plants('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
-# conditions = get_conditions('git_ignore\\CE4321_GridOptimizer_v3.xlsx')
-
-optimal_costs = optimize('cost', plants, conditions, 
-                         graph_best_res=True,
+optimal_costs = optimize('cost', plants, conditions#, 
+                        #  graph_best_res=True,
                         #  alert_when_done=True,
-                         graph_gens='all')
+                        #  graph_gens='all'
+                         )
 
