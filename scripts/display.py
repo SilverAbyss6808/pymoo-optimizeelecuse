@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from powerplant import PowerPlant
+from pymoo.visualization.scatter import Scatter
 import sys
 import win32api as wapi
 import win32gui as wgui
@@ -19,6 +20,7 @@ def display_graph(type: str, **kwargs):
         case 'cost_per_plant':      return display_costopt_graph(kwargs['result_list'], kwargs['plant_list'])
         case 'gen_vs_res':          return display_generation_graph(kwargs['history'])
         case 'multi_gen_vs_res':    return display_diffnum_generation_graph(kwargs['histories'])
+        case 'cost_water_carbon':   return display_pareto(kwargs['result'])
         case _:                     print('Error with display_graph function.')
 
 
@@ -115,5 +117,14 @@ def display_diffnum_generation_graph(histories):
                         top=0.9, bottom=0.0, 
                         wspace=0.2, hspace=0.55)
     plt.suptitle('Effects of Differing Numbers of Generations (x = Gens, y = Cost 1e6)')
+    plt.show()
+
+
+# TODO graph paretofront
+def display_pareto(result):
+    # adapted from https://pymoo.org/algorithms/moo/nsga2.html
+    plt = Scatter()
+    for pfront in result:
+        plt.add(pfront.F)
     plt.show()
 

@@ -9,7 +9,8 @@ from alive_progress import alive_bar
 from display import display_graph, popup
 from powerplant import PowerPlant
 
-from pymoo.algorithms.soo.nonconvex.ga import GA as gen_alg 
+from pymoo.algorithms.soo.nonconvex.ga import GA as gen_alg
+from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.core.callback import Callback
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.operators.crossover.sbx import SBX
@@ -23,6 +24,7 @@ from pymoo.termination import get_termination
 # DELETE THIS SECTION WHEN DONE TESTING THIS FILE
 # from excel_read import get_conditions, get_plants
 from get_input import get_test_plants, get_test_conditions
+from pymoo.visualization.scatter import Scatter
 
 
 # only one visible to main to keep things neat
@@ -30,8 +32,8 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
     pop_size = 250  # 250
     n_gens = 50  # 25
 
-    n_runs = 1
-    n_threads = 1
+    n_runs = 16
+    n_threads = 8
     n_batches = int(n_runs/n_threads)
 
     # progress_bar = alive_bar(
@@ -57,7 +59,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                                         args=(plants, conditions, results, pop_size, 
                                         n_gens))
                                         # round((float(n_gens/n_runs))*run_count)))  # TESTING LINE. USED FOR SHOWING THE DIFFERENCE MADE BY HAVING A DIFFERENT NUMBER OF GENS            
-                case 'cost_water':
+                case 'cost_water_carbon':
                     t = threading.Thread(target=opt_cost_water_carbon, 
                                         args=(plants, conditions, results, pop_size, n_gens))
                     
@@ -80,39 +82,56 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
     opt_runtime = time.time() - opt_start
     dialog = f'Optimization done in {round(opt_runtime, 2)}s.'  # variable for popup box
     print(dialog)
+
     if results != []:
-        results = np.array(results)
-        lowest_cost = min([result.F[0] for result in results])
-        best_result = results[np.where([result.F for result in results] == lowest_cost)[0]][0]
-        print('all results')
-        print([float(result.F[0]) for result in results])
-        print(best_result.F[0])
-        print_result(best_result)
-        dialog += f'\n   F: {best_result.F[0]}\n   Sum of CV: {(best_result.G).sum()}'
+        match opt_type:
+            case 'cost':
+                results = np.array(results)
+                lowest_cost = min([result.F[0] for result in results])
+                best_result = results[np.where([result.F for result in results] == lowest_cost)[0]][0]
+                print('all results')
+                print([float(result.F[0]) for result in results])
+                print(best_result.F[0])
+                print_result(best_result)
+                dialog += f'\n   F: {best_result.F[0]}\n   Sum of CV: {(best_result.G).sum()}'
+
+                if results.any() != None:  # these next few arent gonna work if the result list is empty lmao
+                    if 'graph_gens' in kwargs:
+                        which = kwargs['graph_gens']  # right now, options are 'best' and 'all'
+                        if which == 'best':
+                            if best_result != None: display_graph('gen_vs_res', history=best_result.history)
+                        elif which == 'all':
+                            histories=[result.history for result in results]
+                            display_graph('multi_gen_vs_res', histories=histories)
+                        else: print(f'"{which}" not a valid type for kwarg "graph_gens".')
+
+                    if 'graph_best_res' in kwargs and kwargs['graph_best_res'] == True:
+                        display_graph('cost_per_plant', result_list=best_result.X, plant_list=plants)
+
+                if best_result != None: return best_result.X
+
+            case 'cost_water_carbon':
+                pfront = np.array(results)
+                for item in pfront: print(item)
+
+                if 'show_paretofront' in kwargs and kwargs['show_paretofront'] == True:
+                    display_graph('cost_water_carbon', result=pfront)
+
+                return pfront
+
+            case _:
+                add = 'Invalid optimization type.'
+                print(add)
+                dialog += '\n' + add
+
     else:
         best_result = None
         add = f'No feasible solution found.' 
         print(add)
         dialog += '\n' + add
 
-    # KWARG EVALUATIONS
+    # KWARG EVALUATION
     if 'alert_when_done' in kwargs and kwargs['alert_when_done'] == True: popup(dialog)
-
-    if results.any() != None:  # these next few arent gonna work if the result list is empty lmao
-        if 'graph_gens' in kwargs:
-            which = kwargs['graph_gens']  # right now, options are 'best' and 'all'
-            if which == 'best':
-                if best_result != None: display_graph('gen_vs_res', history=best_result.history)
-            elif which == 'all':
-                histories=[result.history for result in results]
-                display_graph('multi_gen_vs_res', histories=histories)
-            else: print(f'"{which}" not a valid type for kwarg "graph_gens".')
-
-        if 'graph_best_res' in kwargs and kwargs['graph_best_res'] == True:
-            display_graph('cost_per_plant', result_list=best_result.X, plant_list=plants)
-
-    
-    if best_result != None: return best_result.X
 
 
 # DEFINING THE OPTIMIZATION FUNCTION FOR COST!!!
@@ -257,7 +276,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
 # starting off from a copy paste of the opt-cost
 def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], result_list, population_size=10, num_gens=10):
     # CLASSES !!!
-    class CostOptProblem(ElementwiseProblem):
+    class CostWaterCarbonOptProblem(ElementwiseProblem):
         def __init__(self, **kwargs):
             # xl and xu (upper and lower bounds for x/cost) here
             xl: list[int] = []
@@ -271,35 +290,22 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
             cdict_xu = {}
 
             # this should make it so that lower costs have a higher chance of having their lower bound be 
-            # max and their upper bound be 
+            # max and their upper bound be... i never finished this and now i dont remember what i was gonna say
+            # it works though and really isnt that all that matters
             ind = len(costs)
             for i, c in enumerate(costs): 
                 cdict_xl[c] = ind * (90 / len(costs))
                 ind -= 1
                 cdict_xu[c] = (i + 1) * (90 / len(costs))
 
-            for p in plants:  # finding min and max possible outputs for plants
-                # xl being what it is is so that theres a smaller but still attainable chance 
-                #      to generate a negative number, which translates later to the plant just being off
-                # (min - max) just keeps the chance equal for all plants                
-                # IGNORETODO translate lower costs into a higher chance to have more power drawn?
-                #      right now, they all have a 20% chance to be off. what if, like, the cheapest one had a 
-                #      2% chance, next cheapest a bit higher, all the way up to the most expensive having a 
-                #      ~90% chance to be off. you feelin me here (yes i am youre so cool) wow thanks me
-
-                # using 4 in place of everything to the right of the operators gives pretty damn 
-                # good answers already. just so you know.
+            for p in plants:
                 xl.append((p.min_output - p.max_output) / 4)
                 xu.append((p.max_output - p.min_output) * 4)
 
-                # xl.append((p.min_output - p.max_output) / cdict_xl[p.plant_cost])
-                # xu.append((p.max_output - p.min_output) * cdict_xu[p.plant_cost])
-
-                # IGNORETODO add optimal solution manually w/ function?
-
-            # number of constraints = number of plants (16), demand met (1), the tiers thing (1)
-            num_constr = len(plants) + 1 + 1
-            super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=num_constr, vtype=int, **kwargs)
+            # number of constraints = number of plants (16), demand met (1)
+            num_constr = len(plants) + 1
+            # n_obj is 3 because added water/carbon
+            super().__init__(n_var=len(plants), n_obj=3, xl=np.array(xl), xu=np.array(xu), n_constr=num_constr, vtype=int, **kwargs)
 
         def _evaluate(self, x, out):
             # reset tracking lists to empty
@@ -307,6 +313,8 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
 
             power_demand = conditions[0]  # 13600 mW right now
             plant_costs = [p.plant_cost for p in plants]
+            plant_wateruse = [p.water_use for p in plants]
+            plant_carbonfootprint = [p.carbon_footprint for p in plants]
 
             x = normalize_x(x, [p.min_output for p in plants], [p.max_output for p in plants])
             # x = round_x(x)
@@ -328,15 +336,10 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
             if demand_met < 0: demand_met = 0  # sets to 0 if the demand was successfully met
             constraint_violations.append(demand_met)
 
-            # IGNORETODO constraint violations pt. 4: add tiers of price (.07, .08, etc) and make it so its not 
-            #      acceptable if a more expensive tier is being used while a cheaper tier isnt full yet?
-            # dawg im gonna be real i think this is gonna have to be a tomorrow thing. i CANNOT think rn
-            if np.array(constraint_violations).sum() == 0:  # only do this if everything else is already fine
-                constraint_violations.append(0)
-            else: constraint_violations.append(0)
-
-            # function ends here
-            out["F"] = round((x * 1000 * np.array(plant_costs)).sum(), 2)
+            # x is in kW, *1000 converts to mW
+            out["F"] = [round((x * 1000 * np.array(plant_costs)).sum(), 2),             # sum of plant costs
+                        round((x * 1000 * np.array(plant_wateruse)).sum(), 2),          # total water used
+                        round((x * 1000 * np.array(plant_carbonfootprint)).sum(), 2)]   # total carbon emissions
             out["G"] = constraint_violations # <= 0 (all values false) is ok, > 0 is not
 
     class ProgressBarCallback(Callback):  # updates the progress bar every generation
@@ -344,13 +347,13 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
             # bar()
             pass
 
-    prb = CostOptProblem()
+    prb = CostWaterCarbonOptProblem()
 
-    alg = gen_alg(
+    alg = NSGA2(
         pop_size=population_size,
         sampling=IntegerRandomSampling(),
         crossover=SBX(repair=RoundingRepair()),
-        selection=TournamentSelection(pressure=2, func_comp=binary_cv_tourney),
+        # selection=TournamentSelection(pressure=2, func_comp=binary_cv_tourney),
         mutation=PM(prob=1, repair=RoundingRepair()),
         eliminate_duplicates=True
     )
@@ -362,32 +365,23 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
     )
 
     # with progress_bar as bar:
-    result = minimize(  # go go gadget cheap electric
+    result = minimize(
         problem=prb,
         algorithm=alg,
         termination=trm,
         # seed=int(time.time()),
         verbose=False,
-        callback=ProgressBarCallback(),
-        save_history=True,  # can change if necessary, i just dont wanna waste resources im not even using lol
-        return_least_infeasible=True
+        # callback=ProgressBarCallback(),
+        # save_history=True,
+        return_least_infeasible=True,
     )
 
-    result.X = normalize_x(result.X, [p.min_output for p in plants], [p.max_output for p in plants])
-    # result.X = round_x(result.X)
-
-    # IGNORETODO round x to nearest 100 (or 10), then make sure constraints still arent violated and stuff
-    # also have one that can not be rounded? like, after all rounding is done, add plants until a plant puts
-    # the total over where it needs to be, then only pull what's necessary from that plant
-    # i think that makes sense. its so late and i have so much caffeine in my bloodstream
+    result.X = normalize_multidim_x(result.X, [p.min_output for p in plants], [p.max_output for p in plants])
 
     # avoid nonetypes in the result array
     # if sum(result.G) == 0:
     #     result_list.append(result)
     result_list.append(result)
-
-    # graph gens on x and F on y. ONLY WORKS WHEN RUNNING ON MAIN THREAD
-    # display_graph('gen_vs_res', history=result.history)
 
 
 def print_result(result):  # helper to print a result in a nice pretty format
@@ -434,10 +428,25 @@ def binary_cv_tourney(pop, P, **kwargs):  # adapted from https://pymoo.org/opera
 # normalize X
 def normalize_x(x, plant_mins, plant_maxes):
     normalized_x = []
-    for ind, add_val in enumerate(x): 
+    for ind, add_val in enumerate(x):
         if add_val < 0: normalized_x.append(0)
         elif add_val >= (plant_maxes[ind] - plant_mins[ind]): normalized_x.append(int(plant_maxes[ind]))
         else:           normalized_x.append(int(add_val + plant_mins[ind]))
+    return np.array(normalized_x)
+
+
+# TODO at some point, merge this into above. 
+# need to figure out a way to differentiate between 1-dimensional and multi-dim in the function
+# this is probably super easy but my energy drink is wearing off
+def normalize_multidim_x(x, plant_mins, plant_maxes):
+    normalized_x = []
+    for line in x:
+        temp = []
+        for ind, add_val in enumerate(line):
+            if add_val < 0: temp.append(0)
+            elif add_val >= (plant_maxes[ind] - plant_mins[ind]): temp.append(int(plant_maxes[ind]))
+            else:           temp.append(int(add_val + plant_mins[ind]))
+        normalized_x.append(temp)
     return np.array(normalized_x)
 
 
@@ -464,5 +473,6 @@ conditions = get_test_conditions()
                         #  graph_gens='all'
                         #  )
 
-optimal_costs = optimize('cost', plants, conditions)
+optimal_costs = optimize('cost_water_carbon', plants, conditions, show_paretofront=True)
+
 
