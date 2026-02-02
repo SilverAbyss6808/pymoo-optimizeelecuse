@@ -24,7 +24,6 @@ from pymoo.termination import get_termination
 # DELETE THIS SECTION WHEN DONE TESTING THIS FILE
 # from excel_read import get_conditions, get_plants
 from get_input import get_test_plants, get_test_conditions
-from pymoo.visualization.scatter import Scatter
 
 
 # only one visible to main to keep things neat
