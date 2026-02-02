@@ -11,7 +11,7 @@ import string
 from powerplant import PowerPlant
 
 
-temp_excel_path = 'git_ignore\\CE4321_GridOptimizer_v3.xlsx'  # this is just for testing, an actual run will take path from caller
+temp_excel_path = 'git_ignore\\CE4321_GridOptimizer_v3_OLD.xlsx'  # this is just for testing, an actual run will take path from caller
 
 
 # gets plant info from excel sheet and stores it in a list of PowerPlant objects
@@ -114,4 +114,6 @@ def get_conditions(path: string = temp_excel_path):
 
 
 # TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY.
-get_plants(temp_excel_path)
+# plants = get_plants(temp_excel_path)
+# for p in plants: 
+#     print(f'''{p.id},'{p.name}', '{p.type}', {p.plant_cost}, {p.min_output}, {p.max_output}, {p.demand}, {p.wholesale_cost}''')
