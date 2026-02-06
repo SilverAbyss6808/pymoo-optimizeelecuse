@@ -23,7 +23,7 @@ def get_test_plants():
     plants.append(PowerPlant( 13,                 'Alexandria Wind Farm',                'Wind', 0.09,  100,    900,    900, 0.09,   0, 0.5 ))
     plants.append(PowerPlant( 14,               'Racoon City Geothermal',          'Geothermal',  0.1,  300,   1100,   1100, 0.10,   5, 0.5 ))
     plants.append(PowerPlant( 15,                  'Catan Biomass Plant',             'Biomass', 0.13,  100,    300, 189.58, 0.13,  95, 0.5 ))
-    plants.append(PowerPlant( 16, 'Death Star Concentrating Solar Plant', 'Concentrating Solar', 0.14,  100,    700,      0, 0.00,   0, 0.5 ))
+    plants.append(PowerPlant( 16, 'Death Star Concentrating Solar Plant', 'Concentrating Solar', 0.14,  100,    700,      0, 0.00, 100, 0.5 ))
 
     return plants
 

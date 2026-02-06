@@ -7,8 +7,10 @@ cycler==0.12.1
 Deprecated==1.2.18
 dill==0.4.0
 et_xmlfile==2.0.0
+fastgif==2.1
 fonttools==4.60.0
 graphemeu==0.7.2
+ImageIO==2.37.2
 kiwisolver==1.4.9
 matplotlib==3.10.6
 numpy==2.3.3
@@ -16,10 +18,13 @@ openpyxl==3.1.5
 packaging==25.0
 pandas==2.3.3
 pillow==11.3.0
+PyGetWindow==0.0.9
 pymoo==0.6.1.5
 pyparsing==3.2.4
+PyRect==0.2.0
 python-dateutil==2.9.0.post0
 pytz==2025.2
+pywin32==311
 scipy==1.16.2
 setuptools==78.1.1
 six==1.17.0

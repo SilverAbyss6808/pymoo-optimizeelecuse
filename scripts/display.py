@@ -3,6 +3,7 @@ import ctypes
 import math
 import matplotlib.colors as mpc
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 import pandas as pd
 from powerplant import PowerPlant
@@ -20,7 +21,9 @@ def display_graph(type: str, **kwargs):
         case 'cost_per_plant':      return display_costopt_graph(kwargs['result_list'], kwargs['plant_list'])
         case 'gen_vs_res':          return display_generation_graph(kwargs['history'])
         case 'multi_gen_vs_res':    return display_diffnum_generation_graph(kwargs['histories'])
-        case 'cost_water_carbon':   return display_pareto(kwargs['result'])
+        case 'cost_water_carbon':   
+            if 'rotate' in kwargs and kwargs['rotate'] == True: return rotate_that_cube(kwargs['result'])
+            else: return display_pareto(kwargs['result'])
         case _:                     print('Error with display_graph function.')
 
 
@@ -123,8 +126,46 @@ def display_diffnum_generation_graph(histories):
 # TODO graph paretofront
 def display_pareto(result):
     # adapted from https://pymoo.org/algorithms/moo/nsga2.html
-    plt = Scatter()
-    for pfront in result:
-        plt.add(pfront.F)
+    plt = Scatter(labels=['Cost ($million)', 'Water (L/kWh)', 'Carbon (L/kWh?)'])
+    for dot in result:
+        plt.add(dot)
     plt.show()
+
+
+def rotate_that_cube(result):
+    # adapted from https://matplotlib.org/stable/gallery/mplot3d/rotate_axes3d_sgskip.html
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+
+    # # Grab some example data and plot a basic wireframe.
+    # X, Y, Z = axes3d.get_test_data(0.05)
+    # ax.plot_wireframe(X, Y, Z, rstride=10, cstride=10)
+
+    # # Set the axis labels
+    ax.set_xlabel('Cost ($million)')
+    ax.set_ylabel('Water (L/kWh)')
+    ax.set_zlabel('Carbon (L/kWh?)')
+
+    xs = ys = zs = []
+
+    # i know that this part works
+    for dot in result:
+        xs.append(float(dot[0]))
+        ys.append(float(dot[1]))
+        zs.append(float(dot[2]))
+
+    ax.scatter3D(xs, ys, zs)
+
+    # plt.show()
+
+    # Rotate the axes and update
+    for angle in range(0, 181):
+        # Normalize the angle to the range [-180, 180] for display
+        angle_norm = (angle + 180) % 360 - 180
+
+        # Update the axis view and title
+        ax.view_init(0, angle_norm)
+
+        plt.draw()
+        plt.pause(.001)
 

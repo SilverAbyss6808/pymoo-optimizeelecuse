@@ -20,6 +20,7 @@ from pymoo.operators.sampling.rnd import IntegerRandomSampling
 from pymoo.operators.selection.tournament import TournamentSelection
 from pymoo.optimize import minimize
 from pymoo.termination import get_termination
+from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting as NDS
 
 # DELETE THIS SECTION WHEN DONE TESTING THIS FILE
 # from excel_read import get_conditions, get_plants
@@ -31,8 +32,8 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
     pop_size = 250  # 250
     n_gens = 50  # 25
 
-    n_runs = 16
-    n_threads = 8
+    n_runs = 1
+    n_threads = 1
     n_batches = int(n_runs/n_threads)
 
     # progress_bar = alive_bar(
@@ -69,7 +70,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
         for i, t in enumerate(threads): 
             t.start()
-            print(f'Thread {i+1}/{n_threads} in batch {b+1}/{n_batches} running...')  # lets you know what threads are running
+            # print(f'Thread {i+1}/{n_threads} in batch {b+1}/{n_batches} running...')  # lets you know what threads are running
 
         for t in threads: 
             t.join()
@@ -110,11 +111,22 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                 if best_result != None: return best_result.X
 
             case 'cost_water_carbon':
-                pfront = np.array(results)
-                for item in pfront: print(item)
+                all_res_F = [res.F for res in np.array(results)]
 
+                all_F = []
+                for f in all_res_F:
+                    for item in f: all_F.append(item)
+                all_F = np.array(all_F)
+
+                pfront_indices = NDS().do(all_F, only_non_dominated_front=True)
+
+                pfront = []
+                for i in pfront_indices:
+                    pfront.append(all_F[i])
+                
                 if 'show_paretofront' in kwargs and kwargs['show_paretofront'] == True:
-                    display_graph('cost_water_carbon', result=pfront)
+                    # TODO make rotate=True to send it to the cube rotator
+                    display_graph('cost_water_carbon', result=pfront, rotate=True)
 
                 return pfront
 
@@ -274,7 +286,6 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
 # this should find the best balance between the water use, carbon emission, and cost
 # starting off from a copy paste of the opt-cost
 def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], result_list, population_size=10, num_gens=10):
-    # CLASSES !!!
     class CostWaterCarbonOptProblem(ElementwiseProblem):
         def __init__(self, **kwargs):
             # xl and xu (upper and lower bounds for x/cost) here
@@ -336,9 +347,9 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
             constraint_violations.append(demand_met)
 
             # x is in kW, *1000 converts to mW
-            out["F"] = [round((x * 1000 * np.array(plant_costs)).sum(), 2),             # sum of plant costs
-                        round((x * 1000 * np.array(plant_wateruse)).sum(), 2),          # total water used
-                        round((x * 1000 * np.array(plant_carbonfootprint)).sum(), 2)]   # total carbon emissions
+            out["F"] = [round((x * 1000 * np.array(plant_costs)).sum(), 2),      # sum of plant costs
+                        round((x * np.array(plant_wateruse)).sum(), 2),          # total water used
+                        round((x * np.array(plant_carbonfootprint)).sum(), 2)]   # total carbon emissions
             out["G"] = constraint_violations # <= 0 (all values false) is ok, > 0 is not
 
     class ProgressBarCallback(Callback):  # updates the progress bar every generation
@@ -352,7 +363,6 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
         pop_size=population_size,
         sampling=IntegerRandomSampling(),
         crossover=SBX(repair=RoundingRepair()),
-        # selection=TournamentSelection(pressure=2, func_comp=binary_cv_tourney),
         mutation=PM(prob=1, repair=RoundingRepair()),
         eliminate_duplicates=True
     )
