@@ -1,14 +1,18 @@
 
+from alive_progress import alive_bar
 import ctypes
+import imageio
 import math
 import matplotlib.colors as mpc
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 import numpy as np
+import os
 import pandas as pd
 from powerplant import PowerPlant
 from pymoo.visualization.scatter import Scatter
 import sys
+import time
 import win32api as wapi
 import win32gui as wgui
 
@@ -133,6 +137,12 @@ def display_pareto(result):
 
 
 def rotate_that_cube(result):
+
+    images = []
+
+    step = 2
+    degrees = 360
+
     # adapted from https://matplotlib.org/stable/gallery/mplot3d/rotate_axes3d_sgskip.html
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
@@ -156,16 +166,44 @@ def rotate_that_cube(result):
 
     ax.scatter3D(xs, ys, zs)
 
-    # plt.show()
+    progress_bar = alive_bar(
+        total=int(degrees/step), 
+        title='Collecting frames...',
+        theme='smooth'
+    )
 
-    # Rotate the axes and update
-    for angle in range(0, 181):
-        # Normalize the angle to the range [-180, 180] for display
-        angle_norm = (angle + 180) % 360 - 180
+    folderpath = 'scripts/_gifimages'
+    gifpath = 'gifs/pareto' + str(time.time()) + '.gif'
+    to_remove = []
 
-        # Update the axis view and title
-        ax.view_init(0, angle_norm)
+    if os.path.exists(folderpath) == False: os.mkdir(folderpath)
+    if os.path.exists('gifs') == False: os.mkdir('gifs')
 
-        plt.draw()
-        plt.pause(.001)
+    with progress_bar as bar:
+        for angle in range(0, degrees, step):
+            # Normalize the angle to the range [-180, 180] for display
+            angle_norm = (angle + 180) % 360 - 180
+
+            # Update the axis view and title
+            ax.view_init(0, angle_norm)
+
+            # plt.draw()
+            # plt.pause(.001)
+            
+            filepath = folderpath + '/' + str(angle) + '.png'
+            plt.savefig(filepath)
+            images.append(imageio.imread(filepath))
+            to_remove.append(filepath)
+            bar()
+
+    print('Generating GIF...')
+    imageio.mimsave(gifpath, images, duration=1)
+
+    print('GIF generated. Cleaning up...')
+    for file in to_remove:
+        os.remove(file)
+    os.chmod('scripts/_gifimages', 664) 
+    os.rmdir(folderpath)
+
+    print(f'Done. GIF is located at {gifpath}.')
 
