@@ -32,8 +32,8 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
     pop_size = 250  # 250
     n_gens = 50  # 25
 
-    n_runs = 2
-    n_threads = 2
+    n_runs = 16
+    n_threads = 8
     n_batches = int(n_runs/n_threads)
 
     # progress_bar = alive_bar(

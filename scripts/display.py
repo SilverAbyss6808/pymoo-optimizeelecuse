@@ -137,8 +137,7 @@ def display_pareto(result):
 
 
 def rotate_that_cube(result):
-
-    images = []
+    # note that this saves both a png and a gif to the gifs folder
 
     step = 2
     degrees = 360
@@ -147,18 +146,15 @@ def rotate_that_cube(result):
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
 
-    # # Grab some example data and plot a basic wireframe.
-    # X, Y, Z = axes3d.get_test_data(0.05)
-    # ax.plot_wireframe(X, Y, Z, rstride=10, cstride=10)
-
     # # Set the axis labels
     ax.set_xlabel('Cost ($million)')
     ax.set_ylabel('Water (L/kWh)')
     ax.set_zlabel('Carbon (L/kWh?)')
 
-    xs = ys = zs = []
+    xs = []
+    ys = []
+    zs = []
 
-    # i know that this part works
     for dot in result:
         xs.append(float(dot[0]))
         ys.append(float(dot[1]))
@@ -166,18 +162,25 @@ def rotate_that_cube(result):
 
     ax.scatter3D(xs, ys, zs)
 
+    # plt.show()
+
     progress_bar = alive_bar(
         total=int(degrees/step), 
         title='Collecting frames...',
         theme='smooth'
     )
 
-    folderpath = 'scripts/_gifimages'
-    gifpath = 'gifs/pareto' + str(time.time()) + '.gif'
+    folderpath = 'gifs/_gifimages'
+    resultpath = 'gifs/pareto' + str(int(time.time()))
+    images = []
     to_remove = []
 
     if os.path.exists(folderpath) == False: os.mkdir(folderpath)
     if os.path.exists('gifs') == False: os.mkdir('gifs')
+
+    print(f'Saving figure...')
+    plt.savefig(resultpath + '.png')
+    print(f'Figure saved at {resultpath}.png.')
 
     with progress_bar as bar:
         for angle in range(0, degrees, step):
@@ -185,7 +188,7 @@ def rotate_that_cube(result):
             angle_norm = (angle + 180) % 360 - 180
 
             # Update the axis view and title
-            ax.view_init(0, angle_norm)
+            ax.view_init(15, angle_norm)  # a higher first value will tilt the cube more towards you
 
             # plt.draw()
             # plt.pause(.001)
@@ -197,13 +200,14 @@ def rotate_that_cube(result):
             bar()
 
     print('Generating GIF...')
-    imageio.mimsave(gifpath, images, duration=1)
+    resultpath += '.gif'
+    imageio.mimsave(resultpath, images, duration=10, loop=0)
 
     print('GIF generated. Cleaning up...')
     for file in to_remove:
         os.remove(file)
-    os.chmod('scripts/_gifimages', 664) 
+    os.chmod(folderpath, 664) 
     os.rmdir(folderpath)
 
-    print(f'Done. GIF is located at {gifpath}.')
+    print(f'Done. GIF is located at {resultpath}.')
 
