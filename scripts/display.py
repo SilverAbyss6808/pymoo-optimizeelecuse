@@ -1,12 +1,18 @@
 
+from alive_progress import alive_bar
 import ctypes
+import imageio
 import math
 import matplotlib.colors as mpc
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 import numpy as np
+import os
 import pandas as pd
 from powerplant import PowerPlant
+from pymoo.visualization.scatter import Scatter
 import sys
+import time
 import win32api as wapi
 import win32gui as wgui
 
@@ -19,6 +25,9 @@ def display_graph(type: str, **kwargs):
         case 'cost_per_plant':      return display_costopt_graph(kwargs['result_list'], kwargs['plant_list'])
         case 'gen_vs_res':          return display_generation_graph(kwargs['history'])
         case 'multi_gen_vs_res':    return display_diffnum_generation_graph(kwargs['histories'])
+        case 'cost_water_carbon':   
+            if 'rotate' in kwargs and kwargs['rotate'] == True: return rotate_that_cube(kwargs['result'])
+            else: return display_pareto(kwargs['result'])
         case _:                     print('Error with display_graph function.')
 
 
@@ -116,4 +125,89 @@ def display_diffnum_generation_graph(histories):
                         wspace=0.2, hspace=0.55)
     plt.suptitle('Effects of Differing Numbers of Generations (x = Gens, y = Cost 1e6)')
     plt.show()
+
+
+# TODO graph paretofront
+def display_pareto(result):
+    # adapted from https://pymoo.org/algorithms/moo/nsga2.html
+    plt = Scatter(labels=['Cost ($million)', 'Water (L/kWh)', 'Carbon (L/kWh?)'])
+    for dot in result:
+        plt.add(dot)
+    plt.show()
+
+
+def rotate_that_cube(result):
+    # note that this saves both a png and a gif to the gifs folder
+
+    step = 2
+    degrees = 360
+
+    # adapted from https://matplotlib.org/stable/gallery/mplot3d/rotate_axes3d_sgskip.html
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+
+    # # Set the axis labels
+    ax.set_xlabel('Cost ($million)')
+    ax.set_ylabel('Water (L/kWh)')
+    ax.set_zlabel('Carbon (L/kWh?)')
+
+    xs = []
+    ys = []
+    zs = []
+
+    for dot in result:
+        xs.append(float(dot[0]))
+        ys.append(float(dot[1]))
+        zs.append(float(dot[2]))
+
+    ax.scatter3D(xs, ys, zs)
+
+    # plt.show()
+
+    progress_bar = alive_bar(
+        total=int(degrees/step), 
+        title='Collecting frames...',
+        theme='smooth'
+    )
+
+    folderpath = 'gifs/_gifimages'
+    resultpath = 'gifs/pareto' + str(int(time.time()))
+    images = []
+    to_remove = []
+
+    if os.path.exists(folderpath) == False: os.mkdir(folderpath)
+    if os.path.exists('gifs') == False: os.mkdir('gifs')
+
+    print(f'Saving figure...')
+    plt.savefig(resultpath + '.png')
+    print(f'Figure saved at {resultpath}.png.')
+
+    with progress_bar as bar:
+        for angle in range(0, degrees, step):
+            # Normalize the angle to the range [-180, 180] for display
+            angle_norm = (angle + 180) % 360 - 180
+
+            # Update the axis view and title
+            ax.view_init(15, angle_norm)  # a higher first value will tilt the cube more towards you
+
+            # plt.draw()
+            # plt.pause(.001)
+            
+            filepath = folderpath + '/' + str(angle) + '.png'
+            plt.savefig(filepath)
+            images.append(imageio.imread(filepath))
+            to_remove.append(filepath)
+            bar()
+
+    print('Generating GIF...')
+    resultpath += '.gif'
+    imageio.mimsave(resultpath, images, duration=10, loop=0)
+
+    print('GIF generated. Cleaning up...')
+    for file in to_remove:
+        os.remove(file)
+    os.chmod(folderpath, 664) 
+    os.rmdir(folderpath)
+
+    print(f'Done. GIF is located at {resultpath}.')
 
