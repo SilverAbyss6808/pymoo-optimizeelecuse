@@ -1,19 +1,14 @@
 
 from alive_progress import alive_bar
-import ctypes
 import imageio
 import math
-import matplotlib.colors as mpc
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 import os
-import pandas as pd
 from powerplant import PowerPlant
 from pymoo.visualization.scatter import Scatter
 import sys
 import time
-import win32api as wapi
 import win32gui as wgui
 
 
@@ -127,7 +122,7 @@ def display_diffnum_generation_graph(histories):
     plt.show()
 
 
-# TODO graph paretofront
+# only show paretofront
 def display_pareto(result):
     # adapted from https://pymoo.org/algorithms/moo/nsga2.html
     plt = Scatter(labels=['Cost ($million)', 'Water (L/kWh)', 'Carbon (L/kWh?)'])
@@ -136,13 +131,10 @@ def display_pareto(result):
     plt.show()
 
 
-def rotate_that_cube(result):
-    # note that this saves both a png and a gif to the gifs folder
-
-    step = 2
+def rotate_that_cube(result):  # note that this saves both a png and a gif to the gifs folder
     degrees = 360
+    step = 2
 
-    # adapted from https://matplotlib.org/stable/gallery/mplot3d/rotate_axes3d_sgskip.html
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
 
@@ -162,8 +154,6 @@ def rotate_that_cube(result):
 
     ax.scatter3D(xs, ys, zs)
 
-    # plt.show()
-
     progress_bar = alive_bar(
         total=int(degrees/step), 
         title='Collecting frames...',
@@ -175,23 +165,23 @@ def rotate_that_cube(result):
     images = []
     to_remove = []
 
-    if os.path.exists(folderpath) == False: os.mkdir(folderpath)
     if os.path.exists('gifs') == False: os.mkdir('gifs')
+    if os.path.exists(folderpath) == False: os.mkdir(folderpath)
 
+    # save a png figure
     print(f'Saving figure...')
-    plt.savefig(resultpath + '.png')
+    ax.view_init(45, 45)
+    plt.savefig(resultpath + '.png', dpi=300)
     print(f'Figure saved at {resultpath}.png.')
 
+    # collect images every two degrees to be combined into a gif
     with progress_bar as bar:
         for angle in range(0, degrees, step):
-            # Normalize the angle to the range [-180, 180] for display
+            # Normalize the angle to the range [-180, 180] for display (from https://matplotlib.org/stable/gallery/mplot3d/rotate_axes3d_sgskip.html)
             angle_norm = (angle + 180) % 360 - 180
 
             # Update the axis view and title
             ax.view_init(15, angle_norm)  # a higher first value will tilt the cube more towards you
-
-            # plt.draw()
-            # plt.pause(.001)
             
             filepath = folderpath + '/' + str(angle) + '.png'
             plt.savefig(filepath)
@@ -199,10 +189,12 @@ def rotate_that_cube(result):
             to_remove.append(filepath)
             bar()
 
+    # generate the gif from the images and save it
     print('Generating GIF...')
     resultpath += '.gif'
     imageio.mimsave(resultpath, images, duration=10, loop=0)
 
+    # delete temporary images/folders. leaves only the generated gif/png
     print('GIF generated. Cleaning up...')
     for file in to_remove:
         os.remove(file)
