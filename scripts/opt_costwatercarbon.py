@@ -14,7 +14,7 @@ from pymoo.termination import get_termination
 
 # this should find the best balance between the water use, carbon emission, and cost
 # starting off from a copy paste of the opt-cost
-def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], result_list, population_size=10, num_gens=10):
+def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], result_list, progress_bar, population_size=10, num_gens=10):
     class CostWaterCarbonOptProblem(ElementwiseProblem):
         def __init__(self, **kwargs):
             # xl and xu (upper and lower bounds for x/cost) here
@@ -62,10 +62,7 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
                 mi = plants[ind].min_output
                 ma = plants[ind].max_output
 
-                # its not graceful but it works
-                # ok so bad if:
-                #   1. less than min but not 0 OR greater than max
-                #   2. more than one less than max but not 0
+                # same as cost opt
                 if (mw < mi and mw != 0) or mw > ma:  # if EITHER between min and zero OR greater than max
                     constraint_violations.append(1)
                 else: constraint_violations.append(0)
@@ -83,8 +80,7 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
 
     class ProgressBarCallback(Callback):  # updates the progress bar every generation
         def notify(self, alg):  # it won't let me not have an algorithm variable, even if its not used. lmao
-            # bar()
-            pass
+            progress_bar()
 
     prb = CostWaterCarbonOptProblem()
 
@@ -109,7 +105,7 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
         termination=trm,
         # seed=int(time.time()),
         verbose=False,
-        # callback=ProgressBarCallback(),
+        callback=ProgressBarCallback(),
         # save_history=True,
         return_least_infeasible=True,
     )
@@ -121,4 +117,3 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
     #     result_list.append(result)
     result_list.append(result)
 
-    

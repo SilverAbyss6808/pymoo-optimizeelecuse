@@ -1,16 +1,5 @@
 
-from alive_progress import alive_bar
 import numpy as np
-from powerplant import PowerPlant
-
-
-# class ProgressBar:
-    
-#     progress_bar = alive_bar(
-#         total=int(n_runs * n_gens), 
-#         title='Optimizing data, please wait...',
-#         theme='smooth'
-#     )
 
 def print_result(plants, result):  # helper to print a result in a nice pretty format
     # print best solution achieved
@@ -28,11 +17,6 @@ def print_result(plants, result):  # helper to print a result in a nice pretty f
 def binary_cv_tourney(pop, P, **kwargs):  # adapted from https://pymoo.org/operators/selection.html
     # The P input defines the tournaments and competitors
     n_tournaments, n_competitors = P.shape
-    # print(f'population:\n'
-    #       f'    cv sum:         {pop.get("G").sum()}\n'
-    #       f'    F value:        {pop.get("F")[0]}\n'
-    #       f'n_tournaments:  {n_tournaments}\n'
-    #       f'n_competitors:  {n_competitors}\n')
 
     # the result this function returns
     S = np.full(n_tournaments, -1, dtype=int)
@@ -84,3 +68,4 @@ def round_x(unrounded_x):
     for x in unrounded_x:
         rounded_x.append(round(x, -1))  # -1 means round to 10 instead of 1
     return np.array(rounded_x)
+

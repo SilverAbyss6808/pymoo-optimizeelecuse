@@ -14,10 +14,7 @@ from pymoo.optimize import minimize
 from pymoo.termination import get_termination
 
 # DEFINING THE OPTIMIZATION FUNCTION FOR COST!!!
-# I REALLY WISH I COULD PUT MARKDOWN IN HERE. INSTEAD ILL JUST YELL IG
-# pop_size and num_gens have (bad) defaults, but they can be changed by the caller if desired for flexibility
-def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, population_size=10, num_gens=10):
-    # CLASSES !!!
+def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, progress_bar, population_size=10, num_gens=10):
     class CostOptProblem(ElementwiseProblem):
         def __init__(self, **kwargs):
             # xl and xu (upper and lower bounds for x/cost) here
@@ -39,27 +36,14 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
                 ind -= 1
                 cdict_xu[c] = (i + 1) * (90 / len(costs))
 
-            for p in plants:  # finding min and max possible outputs for plants
-                # xl being what it is is so that theres a smaller but still attainable chance 
-                #      to generate a negative number, which translates later to the plant just being off
-                # (min - max) just keeps the chance equal for all plants                
-                # IGNORETODO translate lower costs into a higher chance to have more power drawn?
-                #      right now, they all have a 20% chance to be off. what if, like, the cheapest one had a 
-                #      2% chance, next cheapest a bit higher, all the way up to the most expensive having a 
-                #      ~90% chance to be off. you feelin me here (yes i am youre so cool) wow thanks me
-
+            for p in plants:
                 # using 4 in place of everything to the right of the operators gives pretty damn 
                 # good answers already. just so you know.
                 xl.append((p.min_output - p.max_output) / 4)
                 xu.append((p.max_output - p.min_output) * 4)
 
-                # xl.append((p.min_output - p.max_output) / cdict_xl[p.plant_cost])
-                # xu.append((p.max_output - p.min_output) * cdict_xu[p.plant_cost])
-
-                # IGNORETODO add optimal solution manually w/ function?
-
-            # number of constraints = number of plants (16), demand met (1), the tiers thing (1)
-            num_constr = len(plants) + 1 + 1
+            # number of constraints = number of plants (16), demand met (1)
+            num_constr = len(plants) + 1
             super().__init__(n_var=len(plants), n_obj=1, xl=np.array(xl), xu=np.array(xu), n_constr=num_constr, vtype=int, **kwargs)
 
         def _evaluate(self, x, out):
@@ -76,8 +60,7 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
                 mi = plants[ind].min_output
                 ma = plants[ind].max_output
 
-                # its not graceful but it works
-                # ok so bad if:
+                # bad if:
                 #   1. less than min but not 0 OR greater than max
                 #   2. more than one less than max but not 0
                 if (mw < mi and mw != 0) or mw > ma:  # if EITHER between min and zero OR greater than max
@@ -89,22 +72,14 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
             if demand_met < 0: demand_met = 0  # sets to 0 if the demand was successfully met
             constraint_violations.append(demand_met)
 
-            # IGNORETODO constraint violations pt. 4: add tiers of price (.07, .08, etc) and make it so its not 
-            #      acceptable if a more expensive tier is being used while a cheaper tier isnt full yet?
-            # dawg im gonna be real i think this is gonna have to be a tomorrow thing. i CANNOT think rn
-            if np.array(constraint_violations).sum() == 0:  # only do this if everything else is already fine
-                constraint_violations.append(0)
-            else: constraint_violations.append(0)
-
             # function ends here
             out["F"] = round((x * 1000 * np.array(plant_costs)).sum(), 2)
             out["G"] = constraint_violations # <= 0 (all values false) is ok, > 0 is not
 
     class ProgressBarCallback(Callback):  # updates the progress bar every generation
         def notify(self, alg):  # it won't let me not have an algorithm variable, even if its not used. lmao
-            # bar()
-            pass
-
+            progress_bar()
+    
     prb = CostOptProblem()
 
     alg = gen_alg(
@@ -116,13 +91,11 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
         eliminate_duplicates=True
     )
 
-    # terminations okay for now
     trm = get_termination(
         'n_gen',
         num_gens
     )
 
-    # with progress_bar as bar:
     result = minimize(  # go go gadget cheap electric
         problem=prb,
         algorithm=alg,
@@ -130,17 +103,12 @@ def opt_cost(plants: list[PowerPlant], conditions: list[float], result_list, pop
         # seed=int(time.time()),
         verbose=False,
         callback=ProgressBarCallback(),
-        save_history=True,  # can change if necessary, i just dont wanna waste resources im not even using lol
+        # TODO: make it so wanting the graph turns this on
+        # save_history=True,  # can change if necessary, i just dont wanna waste resources im not even using lol
         return_least_infeasible=True
     )
 
     result.X = normalize_x(result.X, [p.min_output for p in plants], [p.max_output for p in plants])
-    # result.X = round_x(result.X)
-
-    # IGNORETODO round x to nearest 100 (or 10), then make sure constraints still arent violated and stuff
-    # also have one that can not be rounded? like, after all rounding is done, add plants until a plant puts
-    # the total over where it needs to be, then only pull what's necessary from that plant
-    # i think that makes sense. its so late and i have so much caffeine in my bloodstream
 
     # avoid nonetypes in the result array
     # if sum(result.G) == 0:

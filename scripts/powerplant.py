@@ -39,3 +39,5 @@ class PowerPlant:
                f'Wholesale Cost per kWh:    {self.wholesale_cost}\n'
                f'Water Use per kWh:         {self.water_use}\n'
                f'Carbon Footprint per kWh:  {self.carbon_footprint}\n')
+    
+    
