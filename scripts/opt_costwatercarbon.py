@@ -1,4 +1,5 @@
 
+from alive_progress import alive_bar
 import numpy as np
 from opt_helpers import normalize_x, normalize_multidim_x
 from powerplant import PowerPlant
