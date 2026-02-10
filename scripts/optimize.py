@@ -4,6 +4,7 @@ import string
 import time
 import threading
 
+from alive_progress import alive_bar
 from display import display_graph, popup
 from opt_cost import opt_cost
 from opt_costwatercarbon import opt_cost_water_carbon
@@ -16,48 +17,51 @@ from get_input import get_test_plants, get_test_conditions
 
 
 # only one visible to main to keep things neat
-def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float], **kwargs):
-    pop_size = 250  # 250
-    n_gens = 50  # 25
-
-    n_runs = 16
-    n_threads = 8
+def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float], 
+             pop_size=250, n_gens=50, n_runs=16, n_threads=8, **kwargs):
+    
     n_batches = int(n_runs/n_threads)
 
     results = []
     opt_start = time.time()
     print(f'Starting...')
 
-    run_count = 1
-    for b in range(n_batches):  # total number of times that each thread has to run in order to hit n_runs, if that makes sense
-        # with progress_bar as bar:
-        threads = []
-        time_start = time.time()
+    bar_total = n_gens * n_runs
+    bar_title = 'Optimizing data...'
 
-        for i in range(n_threads):
-            match opt_type:
-                case 'cost':
-                    t = threading.Thread(target=opt_cost, 
-                                        args=(plants, conditions, results, pop_size, 
-                                        n_gens))
-                                        # round((float(n_gens/n_runs))*run_count)))  # TESTING LINE. USED FOR SHOWING THE DIFFERENCE MADE BY HAVING A DIFFERENT NUMBER OF GENS            
-                case 'cost_water_carbon':
-                    t = threading.Thread(target=opt_cost_water_carbon, 
-                                        args=(plants, conditions, results, pop_size, n_gens))
-                    
-                case _: print('Optimization type not recognized.')
+    bar = alive_bar(total=bar_total, title=bar_title, theme='smooth')
 
-            run_count += 1
-            threads.append(t)
+    with bar as bar:
+        run_count = 1
+        for b in range(n_batches):  # total number of times that each thread has to run in order to hit n_runs, if that makes sense
+            # with progress_bar as bar:
+            threads = []
+            time_start = time.time()
 
-        for i, t in enumerate(threads): 
-            t.start()
-            # print(f'Thread {i+1}/{n_threads} in batch {b+1}/{n_batches} running...')  # lets you know what threads are running
+            for i in range(n_threads):
+                match opt_type:
+                    case 'cost':
+                        t = threading.Thread(target=opt_cost, 
+                                            args=(plants, conditions, results, bar, pop_size, 
+                                            n_gens))
+                                            # round((float(n_gens/n_runs))*run_count)))  # TESTING LINE. USED FOR SHOWING THE DIFFERENCE MADE BY HAVING A DIFFERENT NUMBER OF GENS            
+                    case 'cost_water_carbon':
+                        t = threading.Thread(target=opt_cost_water_carbon, 
+                                            args=(plants, conditions, results, bar, pop_size, n_gens))
+                        
+                    case _: print('Optimization type not recognized.')
 
-        for t in threads: 
-            t.join()
-        print(f'Batch {b+1} threads done in {round(time.time() - time_start, 2)}s.')
-    
+                run_count += 1
+                threads.append(t)
+
+            for i, t in enumerate(threads): 
+                t.start()
+                # print(f'Thread {i+1}/{n_threads} in batch {b+1}/{n_batches} running...')  # lets you know what threads are running
+
+            for t in threads: 
+                t.join()
+            print(f'Batch {b+1} threads done in {round(time.time() - time_start, 2)}s.')
+        
     # comment all above case and uncomment this to show generation graph (i think i can delete this :P)
     # opt_cost(plants, conditions, results, pop_size, n_gens)
     
@@ -106,8 +110,10 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                 for i in pfront_indices:
                     pfront.append(all_F[i])
                 
-                if 'show_paretofront' in kwargs and kwargs['show_paretofront'] == True:
-                    # TODO make rotate=True to send it to the cube rotator
+                if 'show_best' in kwargs and kwargs['show_best'] == True:
+                    display_graph('cost_water_carbon', result=pfront)
+
+                if 'save_best' in kwargs and kwargs['save_best'] == True:
                     display_graph('cost_water_carbon', result=pfront, rotate=True)
 
                 return pfront
@@ -129,8 +135,8 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
 # =================== TESTING AREA. STUFF BELOW HERE WILL BE DELETED EVENTUALLY. ===================
 
-plants = get_test_plants()
-conditions = get_test_conditions()
+# plants = get_test_plants()
+# conditions = get_test_conditions()
 
 # optimal_costs = optimize('cost', plants, conditions#, 
                         #  graph_best_res=True,
@@ -138,6 +144,6 @@ conditions = get_test_conditions()
                         #  graph_gens='all'
                         #  )
 
-optimal_costs = optimize('cost', plants, conditions)
+# optimal_costs = optimize('cost_water_carbon', plants, conditions, save_best=True)
 
 

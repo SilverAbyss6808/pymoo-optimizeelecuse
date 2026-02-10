@@ -1,16 +1,5 @@
 
-from alive_progress import alive_bar
 import numpy as np
-from powerplant import PowerPlant
-
-
-# class ProgressBar:
-    
-#     progress_bar = alive_bar(
-#         total=int(n_runs * n_gens), 
-#         title='Optimizing data, please wait...',
-#         theme='smooth'
-#     )
 
 def print_result(plants, result):  # helper to print a result in a nice pretty format
     # print best solution achieved
