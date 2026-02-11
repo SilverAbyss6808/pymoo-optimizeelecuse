@@ -21,8 +21,10 @@ def display_graph(type: str, **kwargs):
         case 'gen_vs_res':          return display_generation_graph(kwargs['history'])
         case 'multi_gen_vs_res':    return display_diffnum_generation_graph(kwargs['histories'])
         case 'cost_water_carbon':   
-            if 'rotate' in kwargs and kwargs['rotate'] == True: return rotate_that_cube(kwargs['result'])
-            else: return display_pareto(kwargs['result'])
+            if 'rotate' in kwargs and kwargs['rotate'] == True: 
+                return rotate_that_cube(kwargs['pfront'], kwargs['best'], kwargs['extremes'])
+            else:
+                return display_pareto(kwargs['pfront'], kwargs['best'], kwargs['extremes'])
         case _:                     print('Error with display_graph function.')
 
 
@@ -123,15 +125,24 @@ def display_diffnum_generation_graph(histories):
 
 
 # only show paretofront
-def display_pareto(result):
+def display_pareto(result, best_dot, extremes):
     # adapted from https://pymoo.org/algorithms/moo/nsga2.html
     plt = Scatter(labels=['Cost ($million)', 'Water (L/kWh)', 'Carbon (L/kWh?)'])
+
+    # add pareto front
     for dot in result:
-        plt.add(dot)
+        plt.add(dot, color='royalblue', alpha=0.25, s=10)
+
+    for ex_dot in extremes:
+        plt.add(ex_dot, color='limegreen', edgecolors='black', s=30)
+
+    # add best option based on user's weightings
+    plt.add(best_dot, color='crimson', marker='*', edgecolors='black', s=150)
+    
     plt.show()
 
 
-def rotate_that_cube(result):  # note that this saves both a png and a gif to the gifs folder
+def rotate_that_cube(result, best_dot, extremes):  # note that this saves both a png and a gif to the gifs folder
     degrees = 360
     step = 2
 
@@ -143,16 +154,28 @@ def rotate_that_cube(result):  # note that this saves both a png and a gif to th
     ax.set_ylabel('Water (L/kWh)')
     ax.set_zlabel('Carbon (L/kWh?)')
 
+    # add pareto front
     xs = []
     ys = []
     zs = []
-
     for dot in result:
         xs.append(float(dot[0]))
         ys.append(float(dot[1]))
         zs.append(float(dot[2]))
+    ax.scatter3D(xs, ys, zs, color='blue', alpha=0.25, s=10)
 
-    ax.scatter3D(xs, ys, zs)
+    # add extreme values
+    exs = []
+    eys = []
+    ezs = []
+    for ex_dot in extremes:
+        exs.append(float(ex_dot[0]))
+        eys.append(float(ex_dot[1]))
+        ezs.append(float(ex_dot[2]))
+    ax.scatter3D(exs, eys, ezs, color='limegreen', edgecolors='black', s=30)
+
+    # add best option based on user's weightings
+    ax.scatter3D(best_dot[0], best_dot[1], best_dot[2], color='crimson', marker='*', edgecolors='black', s=150)
 
     progress_bar = alive_bar(
         total=int(degrees/step), 
