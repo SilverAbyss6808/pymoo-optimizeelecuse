@@ -1,21 +1,22 @@
 
-import numpy as np
-import string
-import time
-import threading
-
 from alive_progress import alive_bar
 from display import display_graph, popup
+import numpy as np
 from opt_cost import opt_cost
 from opt_costwatercarbon import opt_cost_water_carbon
 from opt_helpers import print_result
 from powerplant import PowerPlant
+from pymoo.decomposition.asf import ASF
+from pymoo.mcdm.high_tradeoff import HighTradeoffPoints
 from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting as NDS
+import string
+import time
+import threading
 
 
 # only one visible to main to keep things neat
 def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float], 
-             pop_size=250, n_gens=50, n_runs=16, n_threads=8, **kwargs):
+             weights: list[float] = [], pop_size=400, n_gens=50, n_runs=16, n_threads=8, **kwargs):
     
     # to split the number of runs evenly across threads
     n_batches = int(n_runs/n_threads)
@@ -57,7 +58,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
             for t in threads: 
                 t.join()
-            print(f'Batch {b+1} threads done in {round(time.time() - time_start, 2)}s.')
+            # print(f'Batch {b+1} threads done in {round(time.time() - time_start, 2)}s.')
         
     # comment all above case and uncomment this to show generation graph (i think i can delete this :P)
     # opt_cost(plants, conditions, results, pop_size, n_gens)
@@ -95,25 +96,55 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
             case 'cost_water_carbon':
                 all_res_F = [res.F for res in np.array(results)]
+                all_res_X = [res.X for res in np.array(results)]
+                all_res_G = [res.G for res in np.array(results)]
 
                 all_F = []
                 for f in all_res_F:
                     for item in f: all_F.append(item)
                 all_F = np.array(all_F)
 
-                pfront_indices = NDS().do(all_F, only_non_dominated_front=True)
+                all_X = []
+                for x in all_res_X:
+                    for item in x: all_X.append(item)
+                all_x = np.array(all_X)
 
+                all_G = []
+                for g in all_res_G:
+                    for item in g: all_G.append(item)
+                all_G = np.array(all_G)
+
+                # use non-dominated sorting to find pareto front
                 pfront = []
+                pfront_indices = NDS().do(all_F, only_non_dominated_front=True)
                 for i in pfront_indices:
                     pfront.append(all_F[i])
+
+                # use MCDM to find the single best solution based on the provided weighting
+                opt_func = ASF()
+                optimal_ind = opt_func(all_F, weights).argmin()
+                optimal_point = all_F[optimal_ind]
+
+                # find extreme values
+                extremes = []
+                ext_func = HighTradeoffPoints()
+                ext_ind = ext_func(all_F)
+                for i in ext_ind:
+                    extremes.append(all_F[i])
+
+                # optimal result to return
+                # best_result = (all_F[optimal_ind], all_res_X[optimal_ind], all_res_G[optimal_ind])
                 
+                # trigger display.show_paretofront()
                 if 'show_best' in kwargs and kwargs['show_best'] == True:
-                    display_graph('cost_water_carbon', result=pfront)
+                    display_graph('cost_water_carbon', pfront=pfront, best=optimal_point, extremes=extremes)
 
+                # trigger display.rotate_that_cube()
                 if 'save_best' in kwargs and kwargs['save_best'] == True:
-                    display_graph('cost_water_carbon', result=pfront, rotate=True)
+                    display_graph('cost_water_carbon', pfront=pfront, best=optimal_point, extremes=extremes, rotate=True)
 
-                return pfront
+                # give the single best point back to the caller
+                return (all_F[optimal_ind], all_X[optimal_ind], all_G[optimal_ind])
 
             case _:
                 add = 'Invalid optimization type.'

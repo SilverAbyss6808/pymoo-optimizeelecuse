@@ -1,16 +1,18 @@
 
 import numpy as np
 
-def print_result(plants, result):  # helper to print a result in a nice pretty format
+def print_result(plants, result_X, result_F, result_G, **kwargs):  # helper to print a result in a nice pretty format
     # print best solution achieved
-    print('Best solution found: \nX = %s\nF = %s\nG = %s' % (result.X, result.F, result.G))
+    print('Best solution found: \nX = %s\nF = %s\nG = %s' % (result_X, result_F, result_G))
 
     plant_info = [(p.name, p.plant_cost, p.max_output) for p in plants]
-    for i, x in enumerate(result.X):
-        # print(f'{i+1}. {plant_info[i][0]} ({plant_info[i][1]})\n'
-        #       f'    mW produced:    {x} (max: {plant_info[i][2]})\n'
-        #       f'    Total price:    ${round(x * 1000 * plant_info[i][1], 2)}')
-        print(f'{x}/{plant_info[i][2]}   {plant_info[i][1]}')
+    for i, x in enumerate(result_X):
+        if 'long' in kwargs and kwargs['long'] == True:
+            print(f'{i+1}. {plant_info[i][0]} ({plant_info[i][1]})\n'
+                f'    mW produced:    {x} (max: {plant_info[i][2]})\n'
+                f'    Total price:    ${round(x * 1000 * plant_info[i][1], 2)}')
+        else:
+            print(f'{x}/{plant_info[i][2]}   {plant_info[i][1]}')
 
 
 # tournament selection that picks option with fewest violations FIRST, then goes off min

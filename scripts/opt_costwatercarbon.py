@@ -1,5 +1,4 @@
 
-from alive_progress import alive_bar
 import numpy as np
 from opt_helpers import normalize_x, normalize_multidim_x
 from powerplant import PowerPlant
@@ -15,7 +14,8 @@ from pymoo.termination import get_termination
 
 # this should find the best balance between the water use, carbon emission, and cost
 # starting off from a copy paste of the opt-cost
-def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], result_list, progress_bar, population_size=10, num_gens=10):
+def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], result_list, 
+                          progress_bar, population_size=10, num_gens=10):
     class CostWaterCarbonOptProblem(ElementwiseProblem):
         def __init__(self, **kwargs):
             # xl and xu (upper and lower bounds for x/cost) here
@@ -44,6 +44,7 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
 
             # number of constraints = number of plants (16), demand met (1)
             num_constr = len(plants) + 1
+
             # n_obj is 3 because added water/carbon
             super().__init__(n_var=len(plants), n_obj=3, xl=np.array(xl), xu=np.array(xu), n_constr=num_constr, vtype=int, **kwargs)
 
@@ -104,7 +105,6 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
         problem=prb,
         algorithm=alg,
         termination=trm,
-        # seed=int(time.time()),
         verbose=False,
         callback=ProgressBarCallback(),
         # save_history=True,
@@ -114,7 +114,7 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
     result.X = normalize_multidim_x(result.X, [p.min_output for p in plants], [p.max_output for p in plants])
 
     # avoid nonetypes in the result array
-    # if sum(result.G) == 0:
+    # if sum(result.G) == 0:  # just so you know, it doesnt like this
     #     result_list.append(result)
     result_list.append(result)
 
