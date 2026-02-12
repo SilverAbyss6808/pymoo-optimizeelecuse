@@ -96,11 +96,23 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
             case 'cost_water_carbon':
                 all_res_F = [res.F for res in np.array(results)]
+                all_res_X = [res.X for res in np.array(results)]
+                all_res_G = [res.G for res in np.array(results)]
 
                 all_F = []
                 for f in all_res_F:
                     for item in f: all_F.append(item)
                 all_F = np.array(all_F)
+
+                all_X = []
+                for x in all_res_X:
+                    for item in x: all_X.append(item)
+                all_x = np.array(all_X)
+
+                all_G = []
+                for g in all_res_G:
+                    for item in g: all_G.append(item)
+                all_G = np.array(all_G)
 
                 # use non-dominated sorting to find pareto front
                 pfront = []
@@ -120,6 +132,8 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                 for i in ext_ind:
                     extremes.append(all_F[i])
 
+                # optimal result to return
+                # best_result = (all_F[optimal_ind], all_res_X[optimal_ind], all_res_G[optimal_ind])
                 
                 # trigger display.show_paretofront()
                 if 'show_best' in kwargs and kwargs['show_best'] == True:
@@ -130,7 +144,7 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                     display_graph('cost_water_carbon', pfront=pfront, best=optimal_point, extremes=extremes, rotate=True)
 
                 # give the single best point back to the caller
-                return optimal_point
+                return (all_F[optimal_ind], all_X[optimal_ind], all_G[optimal_ind])
 
             case _:
                 add = 'Invalid optimization type.'

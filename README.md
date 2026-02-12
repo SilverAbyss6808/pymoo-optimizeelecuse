@@ -3,7 +3,7 @@
 2. Import ```optimize``` at the top of your file with ```from optimize import optimize```.
 
 # How to Use
-To use the optimization function, simply call it with ```optimize(<opt_type>, <power_plants>, <conditions>, <keyword_arguments>)```. It will return a list of ```Result``` objects from the *pymoo* library if you should want them, but you can also just ignore them and let the optimizer display them for you.
+To use the optimization function, simply call it with ```optimize(<opt_type>, <power_plants>, <conditions>, <keyword_arguments>)```. It will return a ```list``` of three ```list```s (F: most optimal cost, water use, and carbon emissions, respectively; X: best cost distribution; G: constraint violations) if you should want them, but you can also just ignore them and let the optimizer display them for you.
 * ```opt_type```: String. Can be either ```'cost'``` to optimize for just overall cost or ```'cost_water_carbon'``` to optimize for those three.
 * ```power_plants```: List of PowerPlant objects. *Leave blank for default test data.*
 * ```conditions```: List of values following the pattern ```(<total_power>, <sun_percentage>, <wind_percentage>)```. *Leave blank for default test data.*
@@ -28,6 +28,10 @@ Keyword arguments are *generally* unique to the optimization type. Universal kwa
 * ```num_gens```: Integer. Default 50. How many generations the optimization runs over.
 * ```n_runs```: Integer. Default 16. How many different times the optimization runs. The best result(s) are returned.
 * ```n_threads```: Integer. Default 8. Number of threads used.  **Should be a factor of ```n_runs```.**
+
+### Other kwargs:
+* opt_helpers.print_result()
+  * ```long```: ```True``` | (default) ```False```. Shows more detailed information about each plant's contributions and cost in the terminal.
 
 
 #
