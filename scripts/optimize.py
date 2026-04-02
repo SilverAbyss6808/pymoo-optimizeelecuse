@@ -142,9 +142,11 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                 if 'show_best' in kwargs and kwargs['show_best'] == True:
                     display_graph('cost_water_carbon', pfront=pfront, best=optimal_point, extremes=extremes)
 
-                # trigger display.rotate_that_cube()
+                # trigger display.rotate_that_cube() and save a new copy of the result png/gif
                 if 'save_best' in kwargs and kwargs['save_best'] == True:
-                    display_graph('cost_water_carbon', pfront=pfront, best=optimal_point, extremes=extremes, rotate=True)
+                    if 'overwrite_png_gif' in kwargs and kwargs['overwrite_png_gif'] == True:
+                        display_graph('cost_water_carbon', pfront=pfront, best=optimal_point, extremes=extremes, rotate=True, overwrite_png_gif=True)
+                    else: display_graph('cost_water_carbon', pfront=pfront, best=optimal_point, extremes=extremes, rotate=True)
 
                 # give the single best point back to the caller
                 return (all_F[optimal_ind], all_X[optimal_ind], all_G[optimal_ind])

@@ -22,7 +22,9 @@ def display_graph(type: str, **kwargs):
         case 'multi_gen_vs_res':    return display_diffnum_generation_graph(kwargs['histories'])
         case 'cost_water_carbon':   
             if 'rotate' in kwargs and kwargs['rotate'] == True: 
-                return rotate_that_cube(kwargs['pfront'], kwargs['best'], kwargs['extremes'])
+                if 'overwrite_png_gif' in kwargs and kwargs['overwrite_png_gif'] == True:
+                    return rotate_that_cube(kwargs['pfront'], kwargs['best'], kwargs['extremes'], overwrite=True)
+                else: return rotate_that_cube(kwargs['pfront'], kwargs['best'], kwargs['extremes'])
             else:
                 return display_pareto(kwargs['pfront'], kwargs['best'], kwargs['extremes'])
         case _:                     print('Error with display_graph function.')
@@ -142,7 +144,7 @@ def display_pareto(result, best_dot, extremes):
     plt.show()
 
 
-def rotate_that_cube(result, best_dot, extremes):  # note that this saves both a png and a gif to the gifs folder
+def rotate_that_cube(result, best_dot, extremes, **kwargs):  # note that this saves both a png and a gif to the gifs folder
     degrees = 360
     step = 2
 
@@ -184,7 +186,10 @@ def rotate_that_cube(result, best_dot, extremes):  # note that this saves both a
     )
 
     folderpath = 'gifs/_gifimages'
-    resultpath = 'gifs/pareto' + str(int(time.time()))
+
+    if 'overwrite' in kwargs: resultpath = 'gifs/pareto'
+    else: resultpath = 'gifs/pareto' + str(int(time.time()))
+
     images = []
     to_remove = []
 
@@ -225,4 +230,6 @@ def rotate_that_cube(result, best_dot, extremes):  # note that this saves both a
     os.rmdir(folderpath)
 
     print(f'Done. GIF is located at {resultpath}.')
+
+    return resultpath
 

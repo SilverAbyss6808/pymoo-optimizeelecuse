@@ -3,7 +3,5 @@ git_ignore
 .vscode
 gifs
 scripts/_gifimages
-build
-dist
 *.spec
 outfile.txt
