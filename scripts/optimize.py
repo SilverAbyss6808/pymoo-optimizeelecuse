@@ -129,7 +129,6 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
                 extremes = []
                 try:
                     ext_func = HighTradeoffPoints()
-                    print(f'all_F = {all_F}')
                     ext_ind = ext_func(all_F)
                     for i in ext_ind:
                         extremes.append(all_F[i])
