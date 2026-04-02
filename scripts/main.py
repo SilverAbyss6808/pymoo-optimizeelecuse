@@ -32,7 +32,8 @@ print(f'Using weights {weights[0]} (cost), {weights[1]} (water), {weights[2]} (c
 # ordering of items is F, X, G
 best_option = optimize('cost_water_carbon', plants, conditions, weights, 
                   #      n_runs=2, n_threads=2, 
-                       pop_size=300, save_best=True)
+                  #      pop_size=300, save_best=True
+                       )
 
 print(f'Your best option based on the provided weights is:\n'
       f'    Cost:   {best_option[0][0]}\n'

@@ -3,3 +3,6 @@ git_ignore
 .vscode
 gifs
 scripts/_gifimages
+build
+dist
+optimizer.spec
