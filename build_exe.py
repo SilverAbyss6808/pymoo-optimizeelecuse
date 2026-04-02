@@ -4,5 +4,7 @@ PyInstaller.__main__.run([
     'scripts\\optimizer.py',
     '--clean',
     '--contents-directory', 'src',
-    '--recursive-copy-metadata', 'imageio'
+    '--recursive-copy-metadata', 'imageio',
+    '--recursive-copy-metadata', 'pymoo',
+    '--collect-all', 'pymoo'
 ])

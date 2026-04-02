@@ -37,3 +37,14 @@ def get_test_conditions():
 
     return conditions
 
+
+# lower number = higher weight
+def get_test_weights():
+    weights = []
+
+    weights.append(0.1)  # cost
+    weights.append(0.6)  # water
+    weights.append(0.3)  # carbon
+
+    return weights
+

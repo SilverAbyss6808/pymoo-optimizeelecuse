@@ -127,10 +127,14 @@ def optimize(opt_type: string, plants: list[PowerPlant], conditions: list[float]
 
                 # find extreme values
                 extremes = []
-                ext_func = HighTradeoffPoints()
-                ext_ind = ext_func(all_F)
-                for i in ext_ind:
-                    extremes.append(all_F[i])
+                try:
+                    ext_func = HighTradeoffPoints()
+                    print(f'all_F = {all_F}')
+                    ext_ind = ext_func(all_F)
+                    for i in ext_ind:
+                        extremes.append(all_F[i])
+                except ValueError:  # ignores "ValueError: zero-size array to reduction operation maximum which has no identity"
+                    pass
 
                 # optimal result to return
                 # best_result = (all_F[optimal_ind], all_res_X[optimal_ind], all_res_G[optimal_ind])
