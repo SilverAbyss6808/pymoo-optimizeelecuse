@@ -6,7 +6,7 @@ The purpose of this repository is to optimize a list of power plants based on ho
 This repository can be used both as a package included in another repository or as a standalone executable. It was created to be called from a Godot game, which will explain some of the stranger formatting mentioned below.
 
 # How to Use
-### As part of another script
+### As part of another script:
 1. Install required packages with ```pip install -r requirements.txt```.
 2. Import ```optimize``` at the top of your file with ```from optimize import optimize```.
 
