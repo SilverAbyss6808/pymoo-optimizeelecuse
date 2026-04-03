@@ -13,16 +13,18 @@ from write_output import write_results_for_godot
 infile = sys.argv[1]
 # infile = 'test_infile.txt'
 
+# reads the godot dictionary into the three required arguments
 plants, conditions, weights = import_info_from_godot(infile)
-# conditions = get_test_conditions()  # TODO import conditions from file
-# weights = get_test_weights()  # TODO import weights from file
 
 # THE OPTIMIZATION
-best_option = optimize('cost_water_carbon', plants, conditions, weights, pop_size=100, save_best=True, overwrite_png_gif=True)
+best_option = optimize('cost_water_carbon', plants, conditions, weights, save_best=True, overwrite_png_gif=True)
 
 # adapted from main. pretty prints the result to the terminal for reference <3
 print_result(plants, best_option[1], best_option[0], best_option[2])
 
-write_results_for_godot(best_option)  # writes godot-formatted dict of results to outfile.txt
-print(f'Results written to {os.path.abspath('outfile.txt')}.')
+# writes godot-formatted dict of results to outfile.plant
+write_results_for_godot(best_option)
+
+# just informative. tells the user where on their system the output file is
+print(f'Results written to {os.path.abspath('outfile.plant')}.')
 

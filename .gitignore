@@ -4,4 +4,4 @@ git_ignore
 gifs
 scripts/_gifimages
 *.spec
-outfile.txt
+outfile.plant

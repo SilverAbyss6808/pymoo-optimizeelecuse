@@ -30,6 +30,6 @@ def write_results_for_godot(best_option):
     out_string += '}'
 
     # creates outfile if it doesnt exist, overwrites if it does
-    with open("outfile.txt", "w") as f:
+    with open("outfile.plant", "w") as f:
         f.write(out_string)
 

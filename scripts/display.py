@@ -129,7 +129,7 @@ def display_diffnum_generation_graph(histories):
 # only show paretofront
 def display_pareto(result, best_dot, extremes):
     # adapted from https://pymoo.org/algorithms/moo/nsga2.html
-    plt = Scatter(labels=['Cost ($million)', 'Water (L/kWh)', 'Carbon (L/kWh?)'])
+    plt = Scatter(labels=['Cost ($million)', 'Water (L/kWh)', 'Carbon (CO2eq/kWh)'])
 
     # add pareto front
     for dot in result:
@@ -154,7 +154,7 @@ def rotate_that_cube(result, best_dot, extremes, **kwargs):  # note that this sa
     # # Set the axis labels
     ax.set_xlabel('Cost ($million)')
     ax.set_ylabel('Water (L/kWh)')
-    ax.set_zlabel('Carbon (L/kWh?)')
+    ax.set_zlabel('Carbon (CO2eq/kWh)')
 
     # add pareto front
     xs = []
