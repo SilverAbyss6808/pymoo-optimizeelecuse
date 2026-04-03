@@ -25,7 +25,7 @@ The executable returns three things:
 2. A static PNG showing the same information as above. It will also be located in the "gifs" folder.
 3. An ```outfile.plant``` file containing a Godot-formatted dictionary of the optimization's results, plus the absolute paths on your machine of the locations of the two above items.
 
-## Required Arguments
+# Required Arguments
 * ```opt_type```: String. Can be either ```'cost'``` to optimize for just overall cost or ```'cost_water_carbon'``` to optimize for those three.
 * ```power_plants```: List of PowerPlant objects. *Leave blank for default test data.*
 * ```conditions```: List of values following the pattern ```(<total_power_demand>, <sun_percentage>, <wind_percentage>)```. *Leave blank for default test data.*
@@ -35,7 +35,7 @@ The executable returns three things:
 * ```weights```: List of floats following the pattern ```(<cost_weight>, <water_weight>, <carbon_weight>)```. MUST ADD TO 1.0. Note that lower values indicate higher weighting; a weighting of 0.1 will be optimized for more than a weighting of 0.9. For example, a weighting of (0, 0.7, 0.3) will optimize for the lowest cost, then the lowest carbon emissions, then lowest water use.
 * ```keyword_arguments```: Completely optional. Extra options for handling output, specifying how long the optimization runs, etc. See "All Keyword Arguments" section for more detail on how they're used.
 
-## All Keyword Arguments
+# Keyword Arguments
 Keyword arguments are *generally* unique to the optimization type. Universal kwargs will be listed at the bottom. *Note that this is not an exhausitve list.*
 
 ### opt_type = 'cost':
