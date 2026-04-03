@@ -60,6 +60,9 @@ Keyword arguments are *generally* unique to the optimization type. Universal kwa
 ### Does this repository need to be run in a specific Python environment?
 If it's running as part of another script, yes. You'll need to install the required packages with ```pip install -r requirements.txt```. If you're just running the executable, though, you don't need Python installed at all!
 
+### How long does the optimization take to run?
+It depends primarily on the clock rate and number of cores your processor has. Number of plants also plays a role in determining the amount of time it takes. On an eight-core laptop averaging ~4000 GHz, it takes about a minute to optimize a list of five plants. Your mileage will vary.
+
 
 #
 ```
