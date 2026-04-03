@@ -5,14 +5,18 @@ from powerplant import PowerPlant
 import re
 
 
-def import_plants_from_godot(infile):
+def import_info_from_godot(infile):
     unformatted_file_contents = ''
     with open(infile) as f:
         unformatted_file_contents = f.read()
 
     # deconstructing the file from godot to make it easier to use
-    godot_dict_item_regex = re.compile(r'(?:(?:"[\w\s.]+")|(?:[\w\s.]+)):\[(?:(?:(?:"[\w\s.]+")|(?:[\w\s.]+)),?)+]')
-    godot_dict_items = re.findall(godot_dict_item_regex, unformatted_file_contents)  # finds key:value pairs
+    godot_dict_regex = re.compile(r'{.*?}')  # it should find three of these: plants, conditions, weights
+    godot_dicts = re.findall(godot_dict_regex, unformatted_file_contents)
+
+    # get plants from first dict
+    godot_dict_item_regex = re.compile(r'(?:(?:"[\w\s.]+")|(?:[\w\s.]+)):(?:\[(?:(?:(?:"[\w\s.]+")|(?:[\w\s.]+)),?)+]|(?:[\w\s.]+))')
+    godot_dict_items = re.findall(godot_dict_item_regex, godot_dicts[0])  # finds key:value pairs
 
     keyval_item_regex = re.compile(r'(?:"[\w\s.]+")|(?:[\w\s.]+)')  # finds the individual items inside the things
 
@@ -54,7 +58,22 @@ def import_plants_from_godot(infile):
             float(attr_list[8]),  # water_use: float = -1
             float(attr_list[9])   # carbon_footprint: float = -1
         ))
-    return plant_list
+
+    # get conditions from second dict
+    cond_raw = re.findall(godot_dict_item_regex, godot_dicts[1])
+
+    conditions = []
+    for item in cond_raw: 
+        conditions.append(float(item.split(':')[1]))
+
+    # get weights from third dict
+    wgt_raw = re.findall(godot_dict_item_regex, godot_dicts[2])
+
+    weights = []
+    for item in wgt_raw: 
+        weights.append(float(item.split(':')[1]))
+
+    return plant_list, conditions, weights
 
 
 def get_test_plants():

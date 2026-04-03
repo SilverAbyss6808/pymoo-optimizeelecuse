@@ -1,7 +1,7 @@
 
 # this is gonna be the main script that executes. no ui, call the exe with command line args
 
-from get_input import import_plants_from_godot, get_test_conditions, get_test_weights
+from get_input import import_info_from_godot
 from opt_helpers import print_result
 from optimize import optimize
 import os
@@ -13,9 +13,9 @@ from write_output import write_results_for_godot
 infile = sys.argv[1]
 # infile = 'test_infile.txt'
 
-plants = import_plants_from_godot(infile)
-conditions = get_test_conditions()  # TODO import conditions from file
-weights = get_test_weights()  # TODO import weights from file
+plants, conditions, weights = import_info_from_godot(infile)
+# conditions = get_test_conditions()  # TODO import conditions from file
+# weights = get_test_weights()  # TODO import weights from file
 
 # THE OPTIMIZATION
 best_option = optimize('cost_water_carbon', plants, conditions, weights, pop_size=100, save_best=True, overwrite_png_gif=True)
