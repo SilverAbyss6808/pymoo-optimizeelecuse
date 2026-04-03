@@ -53,6 +53,9 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
             constraint_violations: list[bool] = []
 
             power_demand = conditions[0]  # 13600 mW right now
+            sun_percent = conditions[1]
+            wind_percent = conditions[2]
+
             plant_costs = [p.plant_cost for p in plants]
             plant_wateruse = [p.water_use for p in plants]
             plant_carbonfootprint = [p.carbon_footprint for p in plants]
@@ -63,6 +66,13 @@ def opt_cost_water_carbon(plants: list[PowerPlant], conditions: list[float], res
             for ind, mw in enumerate(x):
                 mi = plants[ind].min_output
                 ma = plants[ind].max_output
+
+                # adjust max output for weather-affected plants
+                if plants[ind].type == 'Solar' or plants[ind].type == 'Concentrating Solar':
+                    ma = ma * sun_percent
+
+                if plants[ind].type == 'Wind':
+                    ma = ma * wind_percent
 
                 # same as cost opt
                 if (mw < mi and mw != 0) or mw > ma:  # if EITHER between min and zero OR greater than max
