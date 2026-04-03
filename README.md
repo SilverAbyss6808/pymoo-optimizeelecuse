@@ -23,7 +23,7 @@ In a terminal window, run the command ```path\to\pymoo-optimizeelecuse\dist\opti
 The executable returns three things: 
 1. A rotating, three-dimensional GIF of the Pareto front returned by the optimization. The program's most optimal plant found is indicated with a **red star**, and other high tradeoff points are indicated by **green circles**. The GIF will be located in the "gifs" folder, which is created in the same folder as the executable.
 2. A static PNG showing the same information as above. It will also be located in the "gifs" folder.
-3. An ```outfile.plant``` file containing a Godot-formatted dictionary of the optimization's results, plus the absolute paths on your machine of the locations of the two above items.
+3. An ```outfile.plant``` file containing a Godot-formatted dictionary of the optimization's results, plus the absolute paths on your machine of the locations of the two above items. Located in the same directory as the executable.
 
 # Required Arguments
 * ```opt_type```: String. Can be either ```'cost'``` to optimize for just overall cost or ```'cost_water_carbon'``` to optimize for those three.
